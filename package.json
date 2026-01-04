@@ -1,9 +1,12 @@
 {
-  "name": "http-adapter",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@yildizpay/http-adapter",
+  "version": "1.0.1",
+  "description": "Enterprise-grade HTTP Adapter for Node.js using Axios",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "rimraf dist && tsc",
     "prepublishOnly": "npm run build",
