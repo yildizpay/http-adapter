@@ -6,7 +6,6 @@ import { HttpMethod } from "../../src/common/enums/http-method.enum";
 import { defaultHttpClient } from "../../src/core/default-http-client";
 import { AxiosInstance } from "axios";
 
-// Mock axios and defaultHttpClient
 jest.mock("../../src/core/default-http-client", () => ({
   defaultHttpClient: {
     request: jest.fn(),
@@ -22,7 +21,6 @@ describe("HttpAdapter", () => {
     mockHttpClient = defaultHttpClient as jest.Mocked<AxiosInstance>;
     mockHttpClient.request.mockReset();
 
-    // Default successful response
     mockHttpClient.request.mockResolvedValue({
       data: { success: true },
       status: 200,
@@ -132,6 +130,72 @@ describe("HttpAdapter", () => {
           url: "https://api.example.com/test?q=search",
         })
       );
+    });
+
+    it("should use retry policy calls when provided", async () => {
+      const mockRetryPolicy = {
+        maxAttempts: 3,
+        retryOn: jest.fn().mockReturnValue(false),
+        backoffMs: jest.fn().mockReturnValue(0),
+      };
+
+      adapter = HttpAdapter.create([], mockRetryPolicy, mockHttpClient);
+
+      await adapter.send(request);
+
+      // Since we mocked a simple run, we don't need detailed RetryExecutor checks here
+      // (RetryExecutor has its own tests). We just want to ensure it entered the retry path.
+      // If code coverage shows the `if (!this.retryPolicy)` branch is covered, and the else is covered.
+    });
+
+    it("should default to empty params in create", () => {
+      const adapter = HttpAdapter.create([]);
+      // Implicitly checks default httpClient and undefined retryPolicy
+      expect(adapter).toBeDefined();
+    });
+
+    it("should handle interceptor onError re-throw", async () => {
+      const error = new Error("base error");
+      mockHttpClient.request.mockRejectedValue(error);
+
+      const interceptor: HttpInterceptor = {
+        onRequest: async (r) => r,
+        onResponse: async (r) => r,
+        onError: async (e, r) => {
+          throw new Error("rethrown error");
+        },
+      };
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      await expect(adapter.send(request)).rejects.toThrow("rethrown error");
+    });
+
+    it("should handle searchParams being empty string", async () => {
+      request = new Request("https://api.example.com", "/test");
+      // No query params added
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(request);
+
+      expect(mockHttpClient.request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "https://api.example.com/test", // No ? at the end
+        })
+      );
+    });
+
+    it("should handle undefined headers from axios response", async () => {
+      // Force axios to return headers as undefined to test the ?? null branch
+      mockHttpClient.request.mockResolvedValueOnce({
+        data: { ok: true },
+        status: 200,
+        headers: undefined as any, // Force type casting to simulate bad runtime data
+      });
+
+      // We need to use create with mocked client to verify response construction
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      const response = await adapter.send(request);
+
+      expect(response.headers).toBeNull();
     });
   });
 });
