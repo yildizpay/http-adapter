@@ -1,4 +1,8 @@
-# A HTTP Adapter for Node.js
+# @yildizpay/http-adapter
+
+![Build Status](https://github.com/yildizpay/http-adapter/actions/workflows/ci.yml/badge.svg)
+![NPM Version](https://img.shields.io/npm/v/@yildizpay/http-adapter)
+![License](https://img.shields.io/npm/l/@yildizpay/http-adapter)
 
 A professional, robust, and highly configurable HTTP client adapter designed for enterprise-grade Node.js applications. It provides a fluent API, built-in resilience patterns, and a powerful interceptor system, all sitting on top of the reliable Axios library.
 
@@ -28,13 +32,13 @@ pnpm add @yildizpay/http-adapter
 Use the `RequestBuilder` to create requests cleanly and concisely.
 
 ```typescript
-import { RequestBuilder, HttpMethod } from "@yildizpay/http-adapter";
+import { RequestBuilder, HttpMethod } from '@yildizpay/http-adapter';
 
-const request = new RequestBuilder("https://api.example.com")
-  .setEndpoint("/users")
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/users')
   .setMethod(HttpMethod.POST)
-  .addHeader("Authorization", "Bearer token")
-  .setBody({ name: "John Doe", email: "john@example.com" })
+  .addHeader('Authorization', 'Bearer token')
+  .setBody({ name: 'John Doe', email: 'john@example.com' })
   .build();
 ```
 
@@ -43,13 +47,13 @@ const request = new RequestBuilder("https://api.example.com")
 Instantiate the `HttpAdapter` with optional interceptors and retry policies.
 
 ```typescript
-import { HttpAdapter, RetryPolicies } from "@yildizpay/http-adapter";
+import { HttpAdapter, RetryPolicies } from '@yildizpay/http-adapter';
 
 const adapter = HttpAdapter.create(
   [
     /* interceptors */
   ],
-  RetryPolicies.exponential(3) // Retry up to 3 times with exponential backoff
+  RetryPolicies.exponential(3), // Retry up to 3 times with exponential backoff
 );
 ```
 
@@ -65,9 +69,9 @@ interface UserResponse {
 
 try {
   const response = await adapter.send<UserResponse>(request);
-  console.log("User created:", response.data);
+  console.log('User created:', response.data);
 } catch (error) {
-  console.error("Request failed:", error);
+  console.error('Request failed:', error);
 }
 ```
 
@@ -80,7 +84,7 @@ Network instability is inevitable. This adapter allows you to define robust retr
 The built-in `ExponentialBackoffPolicy` waits increasingly longer between retries (e.g., 200ms, 400ms, 800ms) and adds random jitter to prevent "thundering herd" issues.
 
 ```typescript
-import { RetryPolicies } from "@yildizpay/http-adapter";
+import { RetryPolicies } from '@yildizpay/http-adapter';
 
 // Retries on 429, 500, 502, 503, 504 and network errors
 const retryPolicy = RetryPolicies.exponential(5);
@@ -91,12 +95,12 @@ const retryPolicy = RetryPolicies.exponential(5);
 Interceptors allow you to hook into the lifecycle of a request. Implement the `HttpInterceptor` interface to create custom logic.
 
 ```typescript
-import { HttpInterceptor, Request, Response } from "@yildizpay/http-adapter";
+import { HttpInterceptor, Request, Response } from '@yildizpay/http-adapter';
 
 export class LoggingInterceptor implements HttpInterceptor {
   async onRequest(request: Request): Promise<Request> {
     console.log(
-      `[${request.systemCorrelationId}] Sending ${request.method} to ${request.endpoint}`
+      `[${request.systemCorrelationId}] Sending ${request.method} to ${request.endpoint}`,
     );
     return request;
   }
