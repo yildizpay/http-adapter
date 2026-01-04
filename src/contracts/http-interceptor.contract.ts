@@ -1,5 +1,5 @@
-import { Request } from "../models/request";
-import { Response } from "../models/response";
+import { Request } from '../models/request';
+import { Response } from '../models/response';
 
 /**
  * Defines the contract for an HTTP interceptor.

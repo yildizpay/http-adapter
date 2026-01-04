@@ -1,4 +1,4 @@
-import { RetryPolicy } from "../../contracts/retry-policy.contract";
+import { RetryPolicy } from '../../contracts/retry-policy.contract';
 
 /**
  * A retry policy that implements an exponential backoff strategy.
@@ -41,7 +41,7 @@ export class ExponentialBackoffPolicy extends RetryPolicy {
       status === 502 ||
       status === 503 ||
       status === 504 ||
-      (error as any)?.code === "ECONNABORTED"
+      (error as any)?.code === 'ECONNABORTED'
     );
   }
 

@@ -1,4 +1,4 @@
-import { RetryPolicy } from "../contracts/retry-policy.contract";
+import { RetryPolicy } from '../contracts/retry-policy.contract';
 
 /**
  * Executes an asynchronous operation with configurable retry semantics.

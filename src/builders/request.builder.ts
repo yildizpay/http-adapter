@@ -1,7 +1,7 @@
-import { HttpMethod } from "../common/enums/http-method.enum";
-import { HttpBody } from "../common/types/http.types";
-import { Request } from "../models/request";
-import { RequestOptions } from "../models/request-options";
+import { HttpMethod } from '../common/enums/http-method.enum';
+import { HttpBody } from '../common/types/http.types';
+import { Request } from '../models/request';
+import { RequestOptions } from '../models/request-options';
 
 /**
  * A fluent builder for constructing HTTP requests.
@@ -13,10 +13,10 @@ import { RequestOptions } from "../models/request-options";
  */
 export class RequestBuilder {
   private readonly baseUrl: string;
-  private endpoint: string = "";
+  private endpoint: string = '';
   private method: HttpMethod = HttpMethod.POST;
   private headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   };
   private body: HttpBody = {};
   private queryParams: Record<string, string> = {};
@@ -61,7 +61,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public asXml(): this {
-    this.headers["Content-Type"] = "text/xml";
+    this.headers['Content-Type'] = 'text/xml';
     return this;
   }
 
@@ -72,7 +72,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public asFormUrlEncoded(): this {
-    this.headers["Content-Type"] = "application/x-www-form-urlencoded";
+    this.headers['Content-Type'] = 'application/x-www-form-urlencoded';
     return this;
   }
 
@@ -83,7 +83,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public asJson(): this {
-    this.headers["Content-Type"] = "application/json";
+    this.headers['Content-Type'] = 'application/json';
     return this;
   }
 
@@ -290,7 +290,7 @@ export class RequestBuilder {
       this.headers,
       this.queryParams,
       this.body ? { ...this.body } : undefined,
-      this.options
+      this.options,
     );
   }
 }

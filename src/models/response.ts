@@ -25,7 +25,7 @@ export class Response<T = any> {
     public readonly data: T,
     public readonly status: number,
     public readonly headers: Record<string, string> | null,
-    public readonly systemCorrelationId: string
+    public readonly systemCorrelationId: string,
   ) {
     this.timestamp = new Date();
   }
@@ -44,7 +44,7 @@ export class Response<T = any> {
     data: T,
     status: number,
     headers: Record<string, string> | null,
-    systemCorrelationId: string
+    systemCorrelationId: string,
   ): Response<T> {
     return new Response<T>(data, status, headers, systemCorrelationId);
   }
