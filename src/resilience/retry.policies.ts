@@ -1,4 +1,4 @@
-import { ExponentialBackoffPolicy } from "./policies/exponential-backoff.retry-policy";
+import { ExponentialBackoffPolicy } from './policies/exponential-backoff.retry-policy';
 
 /**
  * A factory class for creating standard retry policies.

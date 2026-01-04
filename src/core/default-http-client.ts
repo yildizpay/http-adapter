@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from 'axios';
 
 /**
  * The default HTTP client instance based on Axios.

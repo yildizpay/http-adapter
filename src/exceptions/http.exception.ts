@@ -1,4 +1,4 @@
-import { Response } from "../models/response";
+import { Response } from '../models/response';
 
 /**
  * Represents an error that occurs during an HTTP request.
@@ -17,7 +17,7 @@ export class HttpException extends Error {
    */
   public constructor(
     message: string,
-    public readonly response: Response<any> | null
+    public readonly response: Response<any> | null,
   ) {
     super(message);
     Object.setPrototypeOf(this, HttpException.prototype);

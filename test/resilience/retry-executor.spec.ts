@@ -1,7 +1,7 @@
-import { RetryExecutor } from "../../src/resilience/retry-executor";
-import { RetryPolicy } from "../../src/contracts/retry-policy.contract";
+import { RetryExecutor } from '../../src/resilience/retry-executor';
+import { RetryPolicy } from '../../src/contracts/retry-policy.contract';
 
-describe("RetryExecutor", () => {
+describe('RetryExecutor', () => {
   let mockPolicy: jest.Mocked<RetryPolicy>;
   let executor: RetryExecutor;
 
@@ -15,35 +15,32 @@ describe("RetryExecutor", () => {
     executor = new RetryExecutor(mockPolicy);
   });
 
-  it("should return result immediately if operation succeeds", async () => {
-    const operation = jest.fn().mockResolvedValue("success");
+  it('should return result immediately if operation succeeds', async () => {
+    const operation = jest.fn().mockResolvedValue('success');
 
     const result = await executor.execute(operation);
 
-    expect(result).toBe("success");
+    expect(result).toBe('success');
     expect(operation).toHaveBeenCalledTimes(1);
     expect(mockPolicy.retryOn).not.toHaveBeenCalled();
   });
 
-  it("should retry on failure if policy allows it", async () => {
-    const error = new Error("fail");
-    const operation = jest
-      .fn()
-      .mockRejectedValueOnce(error)
-      .mockResolvedValue("success");
+  it('should retry on failure if policy allows it', async () => {
+    const error = new Error('fail');
+    const operation = jest.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
 
     mockPolicy.retryOn.mockReturnValue(true);
 
     const result = await executor.execute(operation);
 
-    expect(result).toBe("success");
+    expect(result).toBe('success');
     expect(operation).toHaveBeenCalledTimes(2);
     expect(mockPolicy.retryOn).toHaveBeenCalledWith(error);
     expect(mockPolicy.backoffMs).toHaveBeenCalledWith(1);
   });
 
-  it("should throw immediately if policy says do not retry", async () => {
-    const error = new Error("fatal error");
+  it('should throw immediately if policy says do not retry', async () => {
+    const error = new Error('fatal error');
     const operation = jest.fn().mockRejectedValue(error);
 
     mockPolicy.retryOn.mockReturnValue(false);
@@ -52,8 +49,8 @@ describe("RetryExecutor", () => {
     expect(operation).toHaveBeenCalledTimes(1);
   });
 
-  it("should retry up to maxAttempts and then throw", async () => {
-    const error = new Error("persistent fail");
+  it('should retry up to maxAttempts and then throw', async () => {
+    const error = new Error('persistent fail');
     const operation = jest.fn().mockRejectedValue(error);
 
     mockPolicy.retryOn.mockReturnValue(true);

@@ -7,7 +7,10 @@
   "scripts": {
     "build": "rimraf dist && tsc",
     "prepublishOnly": "npm run build",
-    "test": "jest"
+    "test": "jest",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
   },
   "files": [
     "dist"
@@ -22,7 +25,13 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^25.0.3",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "jest": "^30.2.0",
+    "prettier": "^3.7.4",
     "rimraf": "^6.1.2",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3"

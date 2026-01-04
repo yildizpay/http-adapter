@@ -1,10 +1,10 @@
-import { defaultHttpClient } from "./default-http-client";
-import { Request } from "../models/request";
-import { Response } from "../models/response";
-import { HttpInterceptor } from "../contracts/http-interceptor.contract";
-import { RetryPolicy } from "../contracts/retry-policy.contract";
-import { RetryExecutor } from "../resilience/retry-executor";
-import { AxiosInstance } from "axios";
+import { defaultHttpClient } from './default-http-client';
+import { Request } from '../models/request';
+import { Response } from '../models/response';
+import { HttpInterceptor } from '../contracts/http-interceptor.contract';
+import { RetryPolicy } from '../contracts/retry-policy.contract';
+import { RetryExecutor } from '../resilience/retry-executor';
+import { AxiosInstance } from 'axios';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -27,7 +27,7 @@ export class HttpAdapter {
   private constructor(
     private readonly interceptors: HttpInterceptor[],
     private readonly httpClient: AxiosInstance,
-    private readonly retryPolicy?: RetryPolicy
+    private readonly retryPolicy?: RetryPolicy,
   ) {}
 
   /**
@@ -41,13 +41,9 @@ export class HttpAdapter {
   public static create(
     interceptors: HttpInterceptor[],
     retryPolicy?: RetryPolicy,
-    httpClient?: AxiosInstance
+    httpClient?: AxiosInstance,
   ): HttpAdapter {
-    return new HttpAdapter(
-      interceptors,
-      httpClient ?? defaultHttpClient,
-      retryPolicy
-    );
+    return new HttpAdapter(interceptors, httpClient ?? defaultHttpClient, retryPolicy);
   }
 
   /**
@@ -108,7 +104,7 @@ export class HttpAdapter {
         axiosResponse.data,
         axiosResponse.status,
         (axiosResponse.headers as Record<string, string>) ?? null,
-        processedRequest.systemCorrelationId
+        processedRequest.systemCorrelationId,
       );
 
       /* Apply response-side interceptors in registration order */
@@ -122,10 +118,7 @@ export class HttpAdapter {
 
       /* Allow interceptors to observe or mutate the error */
       for (const interceptor of this.interceptors) {
-        propagatedError = await interceptor.onError(
-          propagatedError,
-          processedRequest
-        );
+        propagatedError = await interceptor.onError(propagatedError, processedRequest);
       }
 
       throw propagatedError;
