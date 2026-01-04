@@ -1,5 +1,6 @@
 import { HttpAdapter } from "../../src/core/http.adapter";
 import { Request } from "../../src/models/request";
+import { RequestBuilder } from "../../src/builders/request.builder";
 import { Response } from "../../src/models/response";
 import { HttpInterceptor } from "../../src/contracts/http-interceptor.contract";
 import { HttpMethod } from "../../src/common/enums/http-method.enum";
@@ -183,6 +184,23 @@ describe("HttpAdapter", () => {
       );
     });
 
+    it("should pass timeout to axios config", async () => {
+      const timeout = 5000;
+      request = new RequestBuilder("https://api.example.com")
+        .setEndpoint("/test")
+        .setTimeout(timeout)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(request);
+
+      expect(mockHttpClient.request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeout: timeout,
+        })
+      );
+    });
+
     it("should handle undefined headers from axios response", async () => {
       // Force axios to return headers as undefined to test the ?? null branch
       mockHttpClient.request.mockResolvedValueOnce({
@@ -191,7 +209,6 @@ describe("HttpAdapter", () => {
         headers: undefined as any, // Force type casting to simulate bad runtime data
       });
 
-      // We need to use create with mocked client to verify response construction
       adapter = HttpAdapter.create([], undefined, mockHttpClient);
       const response = await adapter.send(request);
 

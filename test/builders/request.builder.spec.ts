@@ -76,6 +76,26 @@ describe("RequestBuilder", () => {
         .build();
       expect(request.body).toEqual({});
     });
+
+    it("should reset body params", () => {
+      const request = builder.addBodyParam("a", 1).resetBodyParams().build();
+      expect(request.body).toEqual({});
+    });
+
+    it("should merge multiple body params via batch method", () => {
+      const request = builder
+        .addBodyParam("a", 1)
+        .addBodyParams({ b: 2, c: 3 })
+        .build();
+      expect(request.body).toEqual({ a: 1, b: 2, c: 3 });
+    });
+
+    it("should handle undefined body in build", () => {
+      // Force body to be undefined to hit the branch
+      builder.setBody(undefined as any);
+      const request = builder.build();
+      expect(request.body).toBeNull();
+    });
   });
 
   describe("Header Management", () => {
@@ -128,6 +148,16 @@ describe("RequestBuilder", () => {
         .build();
       expect(request.queryParams).toEqual({});
     });
+
+    it("should replace query params with setQueryParams", () => {
+      const request = builder
+        .addQueryParam("old", "value")
+        .setQueryParams({ new: "value" })
+        .build();
+
+      expect(request.queryParams).toEqual({ new: "value" });
+      expect(request.queryParams["old"]).toBeUndefined();
+    });
   });
 
   describe("Header Management (Batch)", () => {
@@ -145,13 +175,6 @@ describe("RequestBuilder", () => {
     it("should reset headers", () => {
       const request = builder.addHeader("H1", "1").resetHeaders().build();
       expect(request.headers).toEqual({});
-    });
-  });
-
-  describe("Body Management (Batch & Reset)", () => {
-    it("should reset body params", () => {
-      const request = builder.addBodyParam("a", 1).resetBodyParams().build();
-      expect(request.body).toEqual({});
     });
   });
 

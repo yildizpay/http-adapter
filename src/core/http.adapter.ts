@@ -100,6 +100,7 @@ export class HttpAdapter {
         method: processedRequest.method,
         data: processedRequest.body,
         headers: processedRequest.headers,
+        timeout: processedRequest.options?.timeout,
       });
 
       /* Construct strongly-typed response object */

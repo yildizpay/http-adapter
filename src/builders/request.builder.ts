@@ -289,7 +289,8 @@ export class RequestBuilder {
       this.method,
       this.headers,
       this.queryParams,
-      this.body ? { ...this.body } : undefined
+      this.body ? { ...this.body } : undefined,
+      this.options
     );
   }
 }
