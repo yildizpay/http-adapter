@@ -1,6 +1,27 @@
 import { RetryPolicy } from '../../contracts/retry-policy.contract';
 
 /**
+ * Represents an error encountered during an HTTP request, providing details
+ * about the failure such as status codes or network error identifiers.
+ */
+interface HttpNetworkError {
+  /**
+   * An optional error code indicating the type of network failure, such as 'ECONNABORTED'.
+   */
+  code?: string;
+
+  /**
+   * The response object received from the server, if the request reached the server.
+   */
+  response?: {
+    /**
+     * The HTTP status code returned by the server (e.g., 429, 500, 503).
+     */
+    status?: number;
+  };
+}
+
+/**
  * A retry policy that implements an exponential backoff strategy.
  *
  * This strategy increases the wait time between retries exponentially (2^attempt)
@@ -33,7 +54,12 @@ export class ExponentialBackoffPolicy extends RetryPolicy {
    * @returns `true` if the error is transient and retryable; otherwise, `false`.
    */
   public retryOn(error: unknown): boolean {
-    const status = (error as any)?.response?.status;
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+
+    const httpError = error as HttpNetworkError;
+    const status = httpError?.response?.status;
 
     return (
       status === 429 ||
@@ -41,7 +67,7 @@ export class ExponentialBackoffPolicy extends RetryPolicy {
       status === 502 ||
       status === 503 ||
       status === 504 ||
-      (error as any)?.code === 'ECONNABORTED'
+      httpError?.code === 'ECONNABORTED'
     );
   }
 
