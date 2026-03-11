@@ -24,6 +24,9 @@ describe('ExponentialBackoffPolicy', () => {
       { response: { status: 404 } },
       { code: 'OTHER_ERROR' },
       new Error('Generic error'),
+      null,
+      'string error',
+      123,
     ];
 
     retryableErrors.forEach((error) => {

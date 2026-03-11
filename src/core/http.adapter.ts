@@ -4,6 +4,7 @@ import { Response } from '../models/response';
 import { HttpInterceptor } from '../contracts/http-interceptor.contract';
 import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { RetryExecutor } from '../resilience/retry-executor';
+import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 import { AxiosInstance } from 'axios';
 
 /**
@@ -28,6 +29,7 @@ export class HttpAdapter {
     private readonly interceptors: HttpInterceptor[],
     private readonly httpClient: AxiosInstance,
     private readonly retryPolicy?: RetryPolicy,
+    private readonly circuitBreaker?: CircuitBreaker,
   ) {}
 
   /**
@@ -42,8 +44,14 @@ export class HttpAdapter {
     interceptors: HttpInterceptor[],
     retryPolicy?: RetryPolicy,
     httpClient?: AxiosInstance,
+    circuitBreaker?: CircuitBreaker,
   ): HttpAdapter {
-    return new HttpAdapter(interceptors, httpClient ?? defaultHttpClient, retryPolicy);
+    return new HttpAdapter(
+      interceptors,
+      httpClient ?? defaultHttpClient,
+      retryPolicy,
+      circuitBreaker,
+    );
   }
 
   /**
@@ -55,12 +63,19 @@ export class HttpAdapter {
    * @throws The last error encountered if all retries fail, or if an interceptor throws.
    */
   public async send<T = any>(request: Request): Promise<Response<T>> {
-    if (!this.retryPolicy) {
-      return this.dispatch<T>(request);
+    const executePipeline = () => {
+      if (!this.retryPolicy) {
+        return this.dispatch<T>(request);
+      }
+      const executor = new RetryExecutor(this.retryPolicy);
+      return executor.execute(() => this.dispatch<T>(request));
+    };
+
+    if (!this.circuitBreaker) {
+      return executePipeline();
     }
 
-    const executor = new RetryExecutor(this.retryPolicy);
-    return executor.execute(() => this.dispatch<T>(request));
+    return this.circuitBreaker.execute(executePipeline);
   }
 
   /**
