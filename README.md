@@ -1,5 +1,7 @@
 # @yildizpay/http-adapter
 
+**🇬🇧 English** | [🇹🇷 Türkçe](README.tr.md)
+
 ![Build Status](https://github.com/yildizpay/http-adapter/actions/workflows/ci.yml/badge.svg)
 ![NPM Version](https://img.shields.io/npm/v/@yildizpay/http-adapter)
 ![License](https://img.shields.io/npm/l/@yildizpay/http-adapter)
