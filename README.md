@@ -10,7 +10,7 @@ A professional, robust, and highly configurable HTTP client adapter designed for
 
 - **Fluent Request Builder:** Construct complex HTTP requests with an intuitive, chainable API.
 - **Interceptor Architecture:** Easily implement middleware for logging, authentication, error handling, and data transformation.
-- **Resilience & Reliability:** Built-in support for retry policies, including Exponential Backoff with Jitter, to handle transient failures gracefully.
+- **Resilience & Reliability:** Built-in support for retry policies (Exponential Backoff, etc.) and a generic **Circuit Breaker** to handle transient failures gracefully and prevent cascading failures in S2S communication.
 - **Type Safety:** Fully typed requests and responses using generics, ensuring type safety across your application.
 - **Testable:** Designed with dependency injection in mind, making it easy to mock and test.
 - **Immutable Design:** Core components are immutable to prevent side effects in concurrent environments.
@@ -47,13 +47,20 @@ const request = new RequestBuilder('https://api.example.com')
 Instantiate the `HttpAdapter` with optional interceptors and retry policies.
 
 ```typescript
-import { HttpAdapter, RetryPolicies } from '@yildizpay/http-adapter';
+import { HttpAdapter, RetryPolicies, CircuitBreaker } from '@yildizpay/http-adapter';
+
+const circuitBreaker = new CircuitBreaker({
+  failureThreshold: 5,
+  resetTimeoutMs: 60000, 
+});
 
 const adapter = HttpAdapter.create(
   [
     /* interceptors */
   ],
   RetryPolicies.exponential(3), // Retry up to 3 times with exponential backoff
+  undefined,                    // Optional custom axios instance
+  circuitBreaker                // Optional Circuit Breaker
 );
 ```
 
@@ -88,6 +95,20 @@ import { RetryPolicies } from '@yildizpay/http-adapter';
 
 // Retries on 429, 500, 502, 503, 504 and network errors
 const retryPolicy = RetryPolicies.exponential(5);
+```
+
+### Circuit Breaker
+
+To protect your system from waiting for a completely down downstream service, you can employ the `CircuitBreaker`. It opens the circuit after a configured amount of consecutive failures and replies instantaneously with `CircuitBreakerOpenException` without hitting the unresponsive server.
+
+```typescript
+import { CircuitBreaker } from '@yildizpay/http-adapter';
+
+const breaker = new CircuitBreaker({
+  failureThreshold: 5,         // Trip after 5 failures
+  resetTimeoutMs: 30000,       // Try a 'half-open' request after 30 seconds
+  successThreshold: 1,         // Close circuit after 1 successful half-open request
+});
 ```
 
 ## Interceptors

@@ -1,5 +1,6 @@
 import { HttpAdapter } from '../../src/core/http.adapter';
 import { Request } from '../../src/models/request';
+import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { Response } from '../../src/models/response';
 import { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
@@ -143,6 +144,17 @@ describe('HttpAdapter', () => {
       // Since we mocked a simple run, we don't need detailed RetryExecutor checks here
       // (RetryExecutor has its own tests). We just want to ensure it entered the retry path.
       // If code coverage shows the `if (!this.retryPolicy)` branch is covered, and the else is covered.
+    });
+
+    it('should execute using circuit breaker when provided', async () => {
+      const circuitBreaker = new CircuitBreaker();
+      jest.spyOn(circuitBreaker, 'execute');
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, circuitBreaker);
+
+      await adapter.send(request);
+
+      expect(circuitBreaker.execute).toHaveBeenCalled();
     });
 
     it('should default to empty params in create', () => {

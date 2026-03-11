@@ -1,6 +1,6 @@
 {
   "name": "@yildizpay/http-adapter",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Enterprise-grade HTTP Adapter for Node.js using Axios",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,6 +11,7 @@
     "build": "rimraf dist && tsc",
     "prepublishOnly": "npm run build",
     "test": "jest",
+    "test:cov": "jest --coverage",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
