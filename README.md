@@ -115,27 +115,51 @@ const breaker = new CircuitBreaker({
 
 ## Interceptors
 
-Interceptors allow you to hook into the lifecycle of a request. Implement the `HttpInterceptor` interface to create custom logic.
+Thanks to the **Interface Segregation Principle (ISP)**, you aren't forced to implement massive interfaces. You can hook into the exact lifecycle event you need by implementing `HttpRequestInterceptor`, `HttpResponseInterceptor`, or `HttpErrorInterceptor`.
+
+### 1. Request Interceptor (e.g., Auth Tokens)
+Add common headers like Authorization tokens before requests leave.
 
 ```typescript
-import { HttpInterceptor, Request, Response } from '@yildizpay/http-adapter';
+import { HttpRequestInterceptor, Request } from '@yildizpay/http-adapter';
 
-export class LoggingInterceptor implements HttpInterceptor {
+export class AuthInterceptor implements HttpRequestInterceptor {
   async onRequest(request: Request): Promise<Request> {
-    console.log(
-      `[${request.systemCorrelationId}] Sending ${request.method} to ${request.endpoint}`,
-    );
+    request.addHeader('Authorization', 'Bearer my-secret-token');
     return request;
   }
+}
+```
 
+### 2. Response Interceptor (e.g., Data Transformation)
+Inspect or mutate payloads identically across all incoming responses.
+
+```typescript
+import { HttpResponseInterceptor, Response } from '@yildizpay/http-adapter';
+
+export class TransformResponseInterceptor implements HttpResponseInterceptor {
   async onResponse(response: Response): Promise<Response> {
-    console.log(`Received status: ${response.status}`);
+    if (response.status === 201) {
+       console.log('Resource successfully created!');
+    }
     return response;
   }
+}
+```
 
+### 3. Error Interceptor (e.g., Global Error Handling)
+Catch network failures or non-success HTTP statuses centrally.
+
+```typescript
+import { HttpErrorInterceptor, Request, HttpClientException } from '@yildizpay/http-adapter';
+
+export class GlobalErrorInterceptor implements HttpErrorInterceptor {
   async onError(error: unknown, request: Request): Promise<unknown> {
-    console.error(`Error in request ${request.endpoint}`, error);
-    return error;
+    if (error instanceof HttpClientException && error.response?.status === 401) {
+       console.error(`Unauthorized access to ${request.endpoint}! Redirecting to login...`);
+    }
+    // You can throw a custom error or return a fallback payload
+    throw error;
   }
 }
 ```

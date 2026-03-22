@@ -92,7 +92,9 @@ export class HttpAdapter {
 
     /* Apply request-side interceptors in registration order */
     for (const interceptor of this.interceptors) {
-      processedRequest = await interceptor.onRequest(processedRequest);
+      if (interceptor.onRequest) {
+        processedRequest = await interceptor.onRequest(processedRequest);
+      }
     }
 
     try {
@@ -124,7 +126,9 @@ export class HttpAdapter {
 
       /* Apply response-side interceptors in registration order */
       for (const interceptor of this.interceptors) {
-        response = await interceptor.onResponse(response);
+        if (interceptor.onResponse) {
+          response = await interceptor.onResponse(response);
+        }
       }
 
       return response;
@@ -133,7 +137,9 @@ export class HttpAdapter {
 
       /* Allow interceptors to observe or mutate the error */
       for (const interceptor of this.interceptors) {
-        propagatedError = await interceptor.onError(propagatedError, processedRequest);
+        if (interceptor.onError) {
+          propagatedError = await interceptor.onError(propagatedError, processedRequest);
+        }
       }
 
       throw propagatedError;

@@ -117,6 +117,62 @@ describe('HttpAdapter', () => {
       await expect(adapter.send(request)).rejects.toThrow('intercepted error');
     });
 
+    it('should successfully execute a partial interceptor (e.g. only onError)', async () => {
+      const error = new Error('network error');
+      mockHttpClient.request.mockRejectedValue(error);
+
+      const interceptor: HttpInterceptor = {
+        onError: async () => {
+          return new Error('partial interceptor error');
+        },
+      };
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+
+      await expect(adapter.send(request)).rejects.toThrow('partial interceptor error');
+    });
+
+    it('should successfully skip missing onResponse/onError and proceed normally', async () => {
+      mockHttpClient.request.mockResolvedValueOnce({
+        data: { success: true },
+        status: 200,
+        headers: { 'x-test': 'value' },
+      });
+
+      // Only onRequest exists
+      const interceptor: HttpInterceptor = {
+        onRequest: async (req) => {
+          req.headers['x-added'] = 'true';
+          return req;
+        },
+      };
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      const res = await adapter.send(request);
+
+      expect(res.data).toEqual({ success: true });
+      expect(mockHttpClient.request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-added': 'true',
+          }),
+        }),
+      );
+    });
+
+    it('should successfully skip missing onError when request fails and proceed normally', async () => {
+      const error = new Error('network failed completely');
+      mockHttpClient.request.mockRejectedValueOnce(error);
+
+      // Only onRequest exists, no onError
+      const interceptor: HttpInterceptor = {
+        onRequest: async (req) => req,
+      };
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      await expect(adapter.send(request)).rejects.toThrow('network failed completely');
+    });
+
     it('should append query params to url', async () => {
       adapter = HttpAdapter.create([], undefined, mockHttpClient);
       request.addQueryParam('q', 'search');
