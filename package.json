@@ -1,6 +1,6 @@
 {
   "name": "@yildizpay/http-adapter",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Enterprise-grade, zero-dependency HTTP adapter for Node.js with pluggable client abstractions.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,7 +21,7 @@
   ],
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
     "@types/jest": "^30.0.0",
