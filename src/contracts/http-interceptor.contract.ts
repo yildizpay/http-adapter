@@ -8,7 +8,7 @@ import { Response } from '../models/response';
  * globally or for specific clients. They can be used for tasks such as adding authentication tokens,
  * logging, error handling, or transforming data.
  */
-export interface HttpInterceptor {
+export interface HttpRequestInterceptor {
   /**
    * Intercepts an outgoing HTTP request before it is sent to the server.
    *
@@ -18,7 +18,9 @@ export interface HttpInterceptor {
    * @returns A promise that resolves to the modified (or original) request object.
    */
   onRequest(request: Request): Promise<Request>;
+}
 
+export interface HttpResponseInterceptor {
   /**
    * Intercepts an incoming HTTP response before it is processed by the caller.
    *
@@ -28,7 +30,9 @@ export interface HttpInterceptor {
    * @returns A promise that resolves to the modified (or original) response object.
    */
   onResponse(response: Response): Promise<Response>;
+}
 
+export interface HttpErrorInterceptor {
   /**
    * Intercepts errors that occur during the HTTP request lifecycle.
    *
@@ -41,3 +45,7 @@ export interface HttpInterceptor {
    */
   onError(error: unknown, request: Request): Promise<unknown>;
 }
+
+export type HttpInterceptor = Partial<HttpRequestInterceptor> &
+  Partial<HttpResponseInterceptor> &
+  Partial<HttpErrorInterceptor>;

@@ -115,27 +115,51 @@ const breaker = new CircuitBreaker({
 
 ## Önleyiciler (Interceptors)
 
-Önleyiciler (Interceptors), bir isteğin yaşam döngüsüne (lifecycle) dâhil olmanızı sağlar. Özel iş mantıkları kurgulamak için `HttpInterceptor` arayüzünü uygulamanız yeterlidir.
+**Arayüz Ayrımı Prensibi (ISP)** sayesinde gereksiz tüm metodları uygulamak zorunda kalmazsınız. Tam olarak araya girmek istediğiniz yaşam döngüsüne göre `HttpRequestInterceptor`, `HttpResponseInterceptor` veya `HttpErrorInterceptor` arayüzlerini uygulayabilirsiniz.
+
+### 1. İstek Önleyici (Örn: Kimlik Doğrulama)
+İstekler yola çıkmadan önce `Authorization` (Yetkilendirme) gibi başlıkları otomatik ekleyebilirsiniz.
 
 ```typescript
-import { HttpInterceptor, Request, Response } from '@yildizpay/http-adapter';
+import { HttpRequestInterceptor, Request } from '@yildizpay/http-adapter';
 
-export class LoggingInterceptor implements HttpInterceptor {
+export class AuthInterceptor implements HttpRequestInterceptor {
   async onRequest(request: Request): Promise<Request> {
-    console.log(
-      `[${request.systemCorrelationId}] ${request.method} isteği ${request.endpoint} adresine gönderiliyor.`,
-    );
+    request.addHeader('Authorization', 'Bearer benim-gizli-tokenim');
     return request;
   }
+}
+```
 
+### 2. Yanıt Önleyici (Örn: Veri İzleme ve Dönüşüm)
+Projeye giren tüm başarılı verileri merkezi olarak şekillendirebilir veya loglayabilirsiniz.
+
+```typescript
+import { HttpResponseInterceptor, Response } from '@yildizpay/http-adapter';
+
+export class TransformResponseInterceptor implements HttpResponseInterceptor {
   async onResponse(response: Response): Promise<Response> {
-    console.log(`İstek başarı durumu: ${response.status}`);
+    if (response.status === 201) {
+       console.log('Kaynak başarıyla oluşturuldu!');
+    }
     return response;
   }
+}
+```
 
+### 3. Hata Önleyici (Örn: Evrensel Hata Yönetimi)
+Sunucudan gelen hatalı HTTP kodlarını (4xx, 5xx) veya ağ kopmalarını tek bir yerden yakalayıp yönetebilirsiniz.
+
+```typescript
+import { HttpErrorInterceptor, Request, HttpClientException } from '@yildizpay/http-adapter';
+
+export class GlobalErrorInterceptor implements HttpErrorInterceptor {
   async onError(error: unknown, request: Request): Promise<unknown> {
-    console.error(`${request.endpoint} uç noktasına yapılan istekte hata oluştu`, error);
-    return error;
+    if (error instanceof HttpClientException && error.response?.status === 401) {
+       console.error(`${request.endpoint} uç noktasına yetkisiz erişim! Login sayfasına yönlendiriliyor...`);
+    }
+    // Hatayı fırlatmaya devam edebilir veya varsayılan bir veri (fallback) dönebilirsiniz
+    throw error;
   }
 }
 ```
