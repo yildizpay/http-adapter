@@ -6,7 +6,7 @@
 ![NPM Version](https://img.shields.io/npm/v/@yildizpay/http-adapter)
 ![License](https://img.shields.io/npm/l/@yildizpay/http-adapter)
 
-A professional, robust, and highly configurable HTTP client adapter designed for enterprise-grade Node.js applications. It provides a fluent API, built-in resilience patterns, and a powerful interceptor system, all sitting on top of the reliable Axios library.
+A professional, robust, and highly configurable HTTP client adapter designed for enterprise-grade Node.js applications. It provides a fluent API, built-in resilience patterns, and a powerful interceptor system, all natively sitting on top of the **Node.js Native Fetch API**, making it a zero-dependency library while allowing injection of custom HTTP clients.
 
 ## Key Features
 
@@ -61,7 +61,7 @@ const adapter = HttpAdapter.create(
     /* interceptors */
   ],
   RetryPolicies.exponential(3), // Retry up to 3 times with exponential backoff
-  undefined,                    // Optional custom axios instance
+  undefined,                    // Optional custom HTTP client
   circuitBreaker                // Optional Circuit Breaker
 );
 ```

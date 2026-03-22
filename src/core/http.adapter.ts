@@ -5,7 +5,7 @@ import { HttpInterceptor } from '../contracts/http-interceptor.contract';
 import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { RetryExecutor } from '../resilience/retry-executor';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
-import { AxiosInstance } from 'axios';
+import { HttpClientContract } from '../contracts/http-client.contract';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -22,12 +22,12 @@ export class HttpAdapter {
    * Initializes a new instance of the HttpAdapter class.
    *
    * @param interceptors - Ordered list of interceptors to apply on every request/response/error.
-   * @param httpClient - The underlying Axios instance used for network transport.
+   * @param httpClient - The underlying HTTP client used for network transport.
    * @param retryPolicy - Optional resiliency policy; if absent, no retries are attempted.
    */
   private constructor(
     private readonly interceptors: HttpInterceptor[],
-    private readonly httpClient: AxiosInstance,
+    private readonly httpClient: HttpClientContract,
     private readonly retryPolicy?: RetryPolicy,
     private readonly circuitBreaker?: CircuitBreaker,
   ) {}
@@ -37,13 +37,13 @@ export class HttpAdapter {
    *
    * @param interceptors - A list of interceptors to register.
    * @param retryPolicy - An optional retry policy for resilience.
-   * @param httpClient - An optional custom Axios instance (defaults to `defaultHttpClient`).
+   * @param httpClient - An optional custom HTTP client (defaults to `defaultHttpClient`).
    * @returns A new instance of `HttpAdapter`.
    */
   public static create(
     interceptors: HttpInterceptor[],
     retryPolicy?: RetryPolicy,
-    httpClient?: AxiosInstance,
+    httpClient?: HttpClientContract,
     circuitBreaker?: CircuitBreaker,
   ): HttpAdapter {
     return new HttpAdapter(
@@ -62,7 +62,7 @@ export class HttpAdapter {
    * @returns A promise that resolves to a `Response<T>` containing the data and metadata.
    * @throws The last error encountered if all retries fail, or if an interceptor throws.
    */
-  public async send<T = any>(request: Request): Promise<Response<T>> {
+  public async send<T = unknown>(request: Request): Promise<Response<T>> {
     const executePipeline = () => {
       if (!this.retryPolicy) {
         return this.dispatch<T>(request);
@@ -87,7 +87,7 @@ export class HttpAdapter {
    * @param request - The request object (possibly mutated by interceptors).
    * @returns A promise that resolves to the final `Response<T>`.
    */
-  private async dispatch<T = any>(request: Request): Promise<Response<T>> {
+  private async dispatch<T = unknown>(request: Request): Promise<Response<T>> {
     let processedRequest: Request = request;
 
     /* Apply request-side interceptors in registration order */
@@ -106,7 +106,7 @@ export class HttpAdapter {
       processedRequest.setTimestamp(new Date());
 
       /* Delegate to the underlying HTTP client */
-      const axiosResponse = await this.httpClient.request({
+      const clientResponse = await this.httpClient.request<T>({
         url: url.toString(),
         method: processedRequest.method,
         data: processedRequest.body,
@@ -116,9 +116,9 @@ export class HttpAdapter {
 
       /* Construct strongly-typed response object */
       let response = Response.create<T>(
-        axiosResponse.data,
-        axiosResponse.status,
-        (axiosResponse.headers as Record<string, string>) ?? null,
+        clientResponse.data,
+        clientResponse.status,
+        clientResponse.headers ?? null,
         processedRequest.systemCorrelationId,
       );
 
