@@ -6,7 +6,7 @@ import { Response } from '../../src/models/response';
 import { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { defaultHttpClient } from '../../src/core/default-http-client';
-import { AxiosInstance } from 'axios';
+import { HttpClientContract } from '../../src/contracts/http-client.contract';
 
 jest.mock('../../src/core/default-http-client', () => ({
   defaultHttpClient: {
@@ -16,11 +16,11 @@ jest.mock('../../src/core/default-http-client', () => ({
 
 describe('HttpAdapter', () => {
   let adapter: HttpAdapter;
-  let mockHttpClient: jest.Mocked<AxiosInstance>;
+  let mockHttpClient: jest.Mocked<HttpClientContract>;
   let request: Request;
 
   beforeEach(() => {
-    mockHttpClient = defaultHttpClient as jest.Mocked<AxiosInstance>;
+    mockHttpClient = defaultHttpClient as jest.Mocked<HttpClientContract>;
     mockHttpClient.request.mockReset();
 
     mockHttpClient.request.mockResolvedValue({
@@ -68,7 +68,7 @@ describe('HttpAdapter', () => {
           order.push('res1');
           return res;
         },
-        onError: async (err, req) => {
+        onError: async (err) => {
           return err;
         },
       };
@@ -82,7 +82,7 @@ describe('HttpAdapter', () => {
           order.push('res2');
           return res;
         },
-        onError: async (err, req) => {
+        onError: async (err) => {
           return err;
         },
       };
@@ -107,7 +107,7 @@ describe('HttpAdapter', () => {
       const interceptor: HttpInterceptor = {
         onRequest: async (req) => req,
         onResponse: async (res) => res,
-        onError: async (err, req) => {
+        onError: async () => {
           return new Error('intercepted error');
         },
       };
@@ -170,7 +170,7 @@ describe('HttpAdapter', () => {
       const interceptor: HttpInterceptor = {
         onRequest: async (r) => r,
         onResponse: async (r) => r,
-        onError: async (e, r) => {
+        onError: async () => {
           throw new Error('rethrown error');
         },
       };
@@ -192,7 +192,7 @@ describe('HttpAdapter', () => {
       );
     });
 
-    it('should pass timeout to axios config', async () => {
+    it('should pass timeout to client config', async () => {
       const timeout = 5000;
       request = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
@@ -209,12 +209,11 @@ describe('HttpAdapter', () => {
       );
     });
 
-    it('should handle undefined headers from axios response', async () => {
-      // Force axios to return headers as undefined to test the ?? null branch
+    it('should handle undefined headers from client response', async () => {
       mockHttpClient.request.mockResolvedValueOnce({
         data: { ok: true },
         status: 200,
-        headers: undefined as any, // Force type casting to simulate bad runtime data
+        headers: undefined as unknown as Record<string, string>,
       });
 
       adapter = HttpAdapter.create([], undefined, mockHttpClient);

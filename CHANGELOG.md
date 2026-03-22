@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-22
+
+### Breaking Changes
+- **Zero Dependency Architecture**: Completely removed the `axios` dependency. The adapter now natively runs on top of the Node.js `Fetch API`.
+- **Exception Handling**: Deprecated `AxiosError` representations in favor of a strictly-typed custom `HttpClientException`. Manual `try/catch` and interceptor blocks that check for Axios-specific error properties will need to be refactored to catch `HttpClientException`.
+- **Strict Generics**: Elevated internal architecture code quality by transitioning loose generic representations (`<T = any>`) to robust strict typing (`<T = unknown>`), securing payload integrity across `HttpAdapter`.
+
+### Changed
+- Refactored `HttpAdapter` to rely perfectly on the `HttpClientContract` abstraction instead of hard-coupling a concrete client, allowing for completely pluggable custom HTTP libraries.
+
 ## [1.1.0] - 2026-03-11
 
 ### Added

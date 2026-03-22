@@ -6,7 +6,7 @@
 ![NPM Version](https://img.shields.io/npm/v/@yildizpay/http-adapter)
 ![License](https://img.shields.io/npm/l/@yildizpay/http-adapter)
 
-Node.js tabanlı kurumsal seviye (enterprise-grade) uygulamalar için tasarlanmış profesyonel, dayanıklı (robust) ve yüksek oranda yapılandırılabilir bir HTTP istemci (client) adaptörü. Akıcı (fluent) bir API, yerleşik ağ direnci (resilience) desenleri ve güçlü bir önleyici (interceptor) sistemi sunar. Bunların tamamı, güvenilir Axios kütüphanesinin üzerinde konumlandırılmıştır.
+Node.js tabanlı kurumsal seviye (enterprise-grade) uygulamalar için tasarlanmış profesyonel, dayanıklı (robust) ve yüksek oranda yapılandırılabilir bir HTTP istemci (client) adaptörü. Akıcı (fluent) bir API, yerleşik ağ direnci (resilience) desenleri ve güçlü bir önleyici (interceptor) sistemi sunar. Dış bağımlılık bulundurmayan (zero-dependency) paketin çekirdeği **Node.js Native Fetch API** kullanır ancak tercih edilen farklı özel HTTP istemcilerine de (Custom Clients) kolayca genişletilebilir.
 
 ## Temel Özellikler
 
@@ -61,7 +61,7 @@ const adapter = HttpAdapter.create(
     /* interceptors (önleyiciler) */
   ],
   RetryPolicies.exponential(3), // Üstel (exponential) geri çekilme ile 3 defaya kadar yeniden dene
-  undefined,                    // İsteğe bağlı özel axios nesnesi (opsiyonel)
+  undefined,                    // İsteğe bağlı özel HTTP istemcisi (opsiyonel)
   circuitBreaker                // İsteğe bağlı Devre Kesici (opsiyonel)
 );
 ```
