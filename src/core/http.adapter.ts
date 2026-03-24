@@ -6,6 +6,7 @@ import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { RetryExecutor } from '../resilience/retry-executor';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 import { HttpClientContract } from '../contracts/http-client.contract';
+import { ErrorConverter } from './error.converter';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -127,15 +128,15 @@ export class HttpAdapter {
       /* Apply response-side interceptors in registration order */
       for (const interceptor of this.interceptors) {
         if (interceptor.onResponse) {
-          response = await interceptor.onResponse(response);
+          response = (await interceptor.onResponse(response)) as Response<T>;
         }
       }
 
       return response;
     } catch (error) {
-      let propagatedError = error;
+      let propagatedError = ErrorConverter.toAdapterException(error);
 
-      /* Allow interceptors to observe or mutate the error */
+      /* Apply error-side interceptors in registration order */
       for (const interceptor of this.interceptors) {
         if (interceptor.onError) {
           propagatedError = await interceptor.onError(propagatedError, processedRequest);

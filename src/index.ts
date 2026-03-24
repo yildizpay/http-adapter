@@ -25,5 +25,11 @@ export * from './common/enums/http-method.enum';
 export * from './common/types/http.types';
 
 // Exceptions
-export * from './exceptions/http.exception';
 export * from './exceptions/circuit-breaker-open.exception';
+export * from './exceptions/base-adapter.exception';
+export * from './exceptions/http-status.exceptions';
+export * from './exceptions/http-exception.factory';
+export * from './exceptions/network.exceptions';
+export * from './exceptions/network-exception.factory';
+export * from './exceptions/unknown.exception';
+export * from './core/error.converter';

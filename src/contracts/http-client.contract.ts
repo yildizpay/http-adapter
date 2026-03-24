@@ -27,37 +27,3 @@ export interface HttpClientContract {
    */
   request<T = unknown>(config: HttpClientRequestConfig): Promise<HttpClientResponse<T>>;
 }
-
-/**
- * Standardized exception thrown by any HttpClient implementation.
- * Ensures the upper layers (Retry policies, Interceptors) receive a strongly-typed and consistent error shape.
- */
-export class HttpClientException<T = unknown> extends Error {
-  public readonly response?: {
-    status: number;
-    data: T;
-    headers: Record<string, string>;
-  };
-  public readonly code?: string;
-
-  constructor(
-    message: string,
-    status?: number,
-    data?: T,
-    headers?: Record<string, string>,
-    code?: string,
-  ) {
-    super(message);
-    this.name = 'HttpClientException';
-    Object.setPrototypeOf(this, HttpClientException.prototype);
-
-    if (status !== undefined) {
-      this.response = {
-        status,
-        data: data as T,
-        headers: headers ?? {},
-      };
-    }
-    this.code = code;
-  }
-}

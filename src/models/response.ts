@@ -7,7 +7,7 @@
  *
  * @template T - The type of the response data (payload).
  */
-export class Response<T = any> {
+export class Response<T = unknown> {
   /**
    * The timestamp when the response object was instantiated.
    */
@@ -21,7 +21,7 @@ export class Response<T = any> {
    * @param headers - A dictionary of response headers, or null if unavailable.
    * @param systemCorrelationId - The unique ID correlated with the original request.
    */
-  public constructor(
+  private constructor(
     public readonly data: T,
     public readonly status: number,
     public readonly headers: Record<string, string> | null,
@@ -40,13 +40,13 @@ export class Response<T = any> {
    * @param systemCorrelationId - The unique ID correlated with the original request.
    * @returns A new Response instance.
    */
-  public static create<T = any>(
+  public static create<T = unknown>(
     data: T,
     status: number,
     headers: Record<string, string> | null,
-    systemCorrelationId: string,
+    systemCorrelationId?: string,
   ): Response<T> {
-    return new Response<T>(data, status, headers, systemCorrelationId);
+    return new Response<T>(data, status, headers, systemCorrelationId || '');
   }
 
   /**

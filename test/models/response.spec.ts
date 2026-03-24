@@ -7,7 +7,7 @@ describe('Response', () => {
   const correlationId = 'test-correlation-id';
 
   it('should initialize with correct values', () => {
-    const response = new Response(data, status, headers, correlationId);
+    const response = Response.create(data, status, headers, correlationId);
 
     expect(response.data).toEqual(data);
     expect(response.status).toBe(status);
@@ -27,7 +27,7 @@ describe('Response', () => {
 
   describe('toDebugObject', () => {
     it('should return correct debug structure', () => {
-      const response = new Response(data, status, headers, correlationId);
+      const response = Response.create(data, status, headers, correlationId);
       const debug = response.toDebugObject();
 
       expect(debug).toEqual({

@@ -1,6 +1,8 @@
 import { defaultHttpClient, FetchHttpClient } from '../../src/core/default-http-client';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import { HttpClientException } from '../../src/contracts/http-client.contract';
+import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
+import { TimeoutException } from '../../src/exceptions/network.exceptions';
+import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 
 describe('FetchHttpClient', () => {
   let client: FetchHttpClient;
@@ -116,7 +118,7 @@ describe('FetchHttpClient', () => {
     expect(result.data).toBeNull();
   });
 
-  it('should abort and throw HttpClientException on timeout', async () => {
+  it('should abort and throw BaseAdapterException on timeout', async () => {
     (globalThis.fetch as jest.Mock).mockImplementation(
       (url, config) =>
         new Promise((resolve, reject) => {
@@ -161,7 +163,7 @@ describe('FetchHttpClient', () => {
         method: HttpMethod.GET,
         timeout: 5000,
       }),
-    ).rejects.toThrow(HttpClientException);
+    ).rejects.toThrow(BaseAdapterException);
 
     try {
       await client.request({
@@ -170,13 +172,11 @@ describe('FetchHttpClient', () => {
         timeout: 5000,
       });
     } catch (e: unknown) {
-      if (!(e instanceof HttpClientException)) {
+      if (!(e instanceof BaseAdapterException)) {
         console.error('Unexpected error caught:', e);
       }
-      expect(e).toBeInstanceOf(HttpClientException);
-      const httpError = e as HttpClientException;
-      expect(httpError.code).toBe('ECONNABORTED');
-      expect(httpError.message).toBe('Request Timeout');
+      expect(e).toBeInstanceOf(BaseAdapterException);
+      expect(e).toBeInstanceOf(TimeoutException);
     }
   });
 
@@ -192,7 +192,7 @@ describe('FetchHttpClient', () => {
     ).rejects.toThrow('DNS resolution failed');
   });
 
-  it('should explicitly throw HttpClientException on non-ok (4xx, 5xx) status', async () => {
+  it('should explicitly throw BaseAdapterException on non-ok (4xx, 5xx) status', async () => {
     const mockResponse = {
       ok: false,
       status: 404,
@@ -212,8 +212,8 @@ describe('FetchHttpClient', () => {
     }
 
     expect(error).toBeDefined();
-    expect(error).toBeInstanceOf(HttpClientException);
-    const httpError = error as HttpClientException;
+    expect(error).toBeInstanceOf(NotFoundException);
+    const httpError = error as NotFoundException;
     expect(httpError.response).toBeDefined();
     expect(httpError.response?.status).toBe(404);
     expect(httpError.response?.data).toEqual({ error: 'Not Found' });
