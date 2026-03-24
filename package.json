@@ -19,8 +19,22 @@
   "files": [
     "dist"
   ],
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "http",
+    "adapter",
+    "fetch",
+    "s2s",
+    "typescript",
+    "interceptor",
+    "circuit-breaker",
+    "retry",
+    "exponential-backoff",
+    "resilience",
+    "exception",
+    "zero-dependency",
+    "nodejs"
+  ],
+  "author": "Mevlüt Kural <mevlutkural35@gmail.com>",
   "license": "MIT",
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
