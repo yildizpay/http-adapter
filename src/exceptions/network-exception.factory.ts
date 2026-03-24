@@ -3,6 +3,7 @@ import {
   ConnectionRefusedException,
   DnsResolutionException,
   TimeoutException,
+  SocketResetException,
 } from './network.exceptions';
 
 /**
@@ -10,8 +11,9 @@ import {
  * {@link NetworkException} subclasses.
  *
  * Supports classification of common Node.js and browser Fetch API error patterns:
- * - `AbortError` / `ECONNABORTED` → {@link TimeoutException}
+ * - `AbortError` / `ECONNABORTED` / `ETIMEDOUT` → {@link TimeoutException}
  * - `ECONNREFUSED` → {@link ConnectionRefusedException}
+ * - `ECONNRESET` → {@link SocketResetException}
  * - `ENOTFOUND` / `EAI_AGAIN` → {@link DnsResolutionException}
  * - All other errors → generic {@link NetworkException}
  */
@@ -24,30 +26,35 @@ export class NetworkExceptionFactory {
    * (strings, plain objects, etc.) are wrapped in a generic {@link NetworkException}.
    *
    * @param error - The raw error thrown by the underlying transport layer.
+   * @param url - The request URL associated with this error, for debugging context.
    * @returns A strongly-typed {@link NetworkException} subclass.
    */
-  public static createFromNativeError(error: unknown): NetworkException {
+  public static createFromNativeError(error: unknown, url?: string): NetworkException {
     if (error instanceof Error) {
       const code = 'code' in error ? String(error.code) : undefined;
 
-      if (error.name === 'AbortError' || code === 'ECONNABORTED') {
-        return new TimeoutException(error.message, code || 'ECONNABORTED', error);
+      if (error.name === 'AbortError' || code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+        return new TimeoutException(error.message, code || 'ECONNABORTED', error, url);
       }
 
       if (code === 'ECONNREFUSED') {
-        return new ConnectionRefusedException(error.message, code, error);
+        return new ConnectionRefusedException(error.message, code, error, url);
+      }
+
+      if (code === 'ECONNRESET') {
+        return new SocketResetException(error.message, code, error, url);
       }
 
       if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
-        return new DnsResolutionException(error.message, code, error);
+        return new DnsResolutionException(error.message, code, error, url);
       }
 
-      return new NetworkException(error.message, code, error);
+      return new NetworkException(error.message, code, error, url);
     }
 
     const message = this.extractMessage(error);
 
-    return new NetworkException(message);
+    return new NetworkException(message, undefined, undefined, url);
   }
 
   /**

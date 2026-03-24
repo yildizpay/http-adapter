@@ -20,8 +20,10 @@ export class HttpException<T = unknown> extends BaseAdapterException {
   }
 
   public getRetryAfterMs(): number | undefined {
-    const headerValue =
-      this.response.headers?.['retry-after'] || this.response.headers?.['Retry-After'];
+    const headers = this.response.headers;
+    if (!headers) return undefined;
+    const key = Object.keys(headers).find((k) => k.toLowerCase() === 'retry-after');
+    const headerValue = key ? headers[key] : undefined;
     if (!headerValue) return undefined;
 
     const asSeconds = Number.parseInt(headerValue, 10);

@@ -20,6 +20,11 @@ interface HttpLikeError {
   };
 }
 
+export interface ErrorContext {
+  correlationId?: string;
+  url?: string;
+}
+
 /**
  * Universal error converter responsible for normalizing any error received from
  * an HttpClient implementation into a standardized BaseAdapterException hierarchy.
@@ -29,12 +34,11 @@ export class ErrorConverter {
    * Coerces any unknown error into a strongly-typed BaseAdapterException.
    *
    * @param error - The raw error to convert.
+   * @param context - Optional request context (correlationId, url) to attach to the exception.
    * @returns A standardized exception (HttpException, NetworkException, or UnknownException).
    */
-  public static toAdapterException(error: unknown): BaseAdapterException {
-    if (error instanceof BaseAdapterException) {
-      return error;
-    }
+  public static toAdapterException(error: unknown, context?: ErrorContext): BaseAdapterException {
+    if (error instanceof BaseAdapterException) return error;
 
     if (error && typeof error === 'object') {
       const errObj = error as HttpLikeError;
@@ -52,16 +56,15 @@ export class ErrorConverter {
           message,
           errObj.code,
           error,
+          context?.correlationId,
         );
       }
 
       if (errObj.code || errObj.name === 'AbortError') {
-        return NetworkExceptionFactory.createFromNativeError(error);
+        return NetworkExceptionFactory.createFromNativeError(error, context?.url);
       }
 
-      if (error instanceof Error) {
-        return new UnknownException(error.message, error);
-      }
+      if (error instanceof Error) return new UnknownException(error.message, error);
     }
 
     return new UnknownException(typeof error === 'string' ? error : 'Unknown Adapter Error', error);

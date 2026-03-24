@@ -214,4 +214,22 @@ describe('HttpExceptionFactory', () => {
     const error = HttpExceptionFactory.createFromResponse(499);
     expect(error).toBeInstanceOf(HttpException);
   });
+
+  it('should attach correlationId to the response when provided', () => {
+    const error = HttpExceptionFactory.createFromResponse(
+      404,
+      { detail: 'not found' },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'corr-xyz-789',
+    );
+    expect(error.response.systemCorrelationId).toBe('corr-xyz-789');
+  });
+
+  it('should leave correlationId empty when not provided', () => {
+    const error = HttpExceptionFactory.createFromResponse(500);
+    expect(error.response.systemCorrelationId).toBe('');
+  });
 });

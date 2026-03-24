@@ -303,5 +303,10 @@ describe('HttpStatusExceptions', () => {
       const error = new HttpException(Response.create(null, 429, { 'Retry-After': '10' }), 'Error');
       expect(error.getRetryAfterMs()).toBe(10000);
     });
+
+    it('parses uppercase RETRY-AFTER header (case-insensitive)', () => {
+      const error = new HttpException(Response.create(null, 429, { 'RETRY-AFTER': '45' }), 'Error');
+      expect(error.getRetryAfterMs()).toBe(45000);
+    });
   });
 });

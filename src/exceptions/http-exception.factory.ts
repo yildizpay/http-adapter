@@ -146,8 +146,9 @@ export class HttpExceptionFactory {
     message?: string,
     code?: string,
     cause?: unknown,
+    correlationId?: string,
   ): HttpException<T> {
-    const response = Response.create(data as T, status, headers ?? null);
+    const response = Response.create(data as T, status, headers ?? null, correlationId);
     const ExceptionClass = HttpStatusExceptionMap[status];
 
     if (ExceptionClass) {

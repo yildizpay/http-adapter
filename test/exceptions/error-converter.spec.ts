@@ -10,6 +10,7 @@ import {
   ConnectionRefusedException,
   DnsResolutionException,
   TimeoutException,
+  SocketResetException,
 } from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
 import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
@@ -38,6 +39,22 @@ describe('ErrorConverter', () => {
       const original = new CircuitBreakerOpenException('CB open');
       const result = ErrorConverter.toAdapterException(original);
       expect(result).toBe(original);
+    });
+  });
+
+  describe('context propagation (correlationId, url)', () => {
+    it('should attach correlationId to HttpException response when provided', () => {
+      const rawError = { status: 404, message: 'Not Found' };
+      const result = ErrorConverter.toAdapterException(rawError, {
+        correlationId: 'corr-abc-123',
+      });
+      expect(result).toBeInstanceOf(NotFoundException);
+      expect((result as NotFoundException).response.systemCorrelationId).toBe('corr-abc-123');
+    });
+
+    it('should not fail when context is omitted', () => {
+      const rawError = { status: 400, message: 'Bad' };
+      expect(() => ErrorConverter.toAdapterException(rawError)).not.toThrow();
     });
   });
 
@@ -134,6 +151,22 @@ describe('ErrorConverter', () => {
       expect(result).toBeInstanceOf(TimeoutException);
     });
 
+    it('should convert an Error with ETIMEDOUT into TimeoutException', () => {
+      const rawError = new Error('Connection timed out');
+      (rawError as NodeJS.ErrnoException).code = 'ETIMEDOUT';
+      const result = ErrorConverter.toAdapterException(rawError);
+      expect(result).toBeInstanceOf(TimeoutException);
+      expect(result.code).toBe('ETIMEDOUT');
+    });
+
+    it('should convert an Error with ECONNRESET into SocketResetException', () => {
+      const rawError = new Error('Connection reset by peer');
+      (rawError as NodeJS.ErrnoException).code = 'ECONNRESET';
+      const result = ErrorConverter.toAdapterException(rawError);
+      expect(result).toBeInstanceOf(SocketResetException);
+      expect(result.code).toBe('ECONNRESET');
+    });
+
     it('should convert an Error with ENOTFOUND into DnsResolutionException', () => {
       const rawError = new Error('getaddrinfo ENOTFOUND');
       (rawError as NodeJS.ErrnoException).code = 'ENOTFOUND';
@@ -152,6 +185,16 @@ describe('ErrorConverter', () => {
       const plainObj = { name: 'AbortError', message: 'aborted' };
       const result = ErrorConverter.toAdapterException(plainObj);
       expect(result).toBeInstanceOf(NetworkException);
+    });
+
+    it('should attach url from context to NetworkException', () => {
+      const rawError = new Error('refused');
+      (rawError as NodeJS.ErrnoException).code = 'ECONNREFUSED';
+      const result = ErrorConverter.toAdapterException(rawError, {
+        url: 'https://api.example.com/pay',
+      });
+      expect(result).toBeInstanceOf(ConnectionRefusedException);
+      expect((result as ConnectionRefusedException).url).toBe('https://api.example.com/pay');
     });
   });
 

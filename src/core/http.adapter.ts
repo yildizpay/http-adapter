@@ -98,6 +98,8 @@ export class HttpAdapter {
       }
     }
 
+    let requestUrl: string | undefined;
+
     try {
       /* Build final URL with query parameters */
       const url = new URL(processedRequest.endpoint, processedRequest.baseUrl);
@@ -105,12 +107,13 @@ export class HttpAdapter {
       if (searchParams.toString()) {
         url.search = searchParams.toString();
       }
+      requestUrl = url.toString();
 
       processedRequest.setTimestamp(new Date());
 
       /* Delegate to the underlying HTTP client */
       const clientResponse = await this.httpClient.request<T>({
-        url: url.toString(),
+        url: requestUrl,
         method: processedRequest.method,
         data: processedRequest.body,
         headers: processedRequest.headers,
@@ -134,7 +137,10 @@ export class HttpAdapter {
 
       return response;
     } catch (error) {
-      let propagatedError = ErrorConverter.toAdapterException(error);
+      let propagatedError = ErrorConverter.toAdapterException(error, {
+        correlationId: processedRequest.systemCorrelationId,
+        url: requestUrl,
+      });
 
       /* Apply error-side interceptors in registration order */
       for (const interceptor of this.interceptors) {
