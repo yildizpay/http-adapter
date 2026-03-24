@@ -1,3 +1,5 @@
+import { RequestContext } from './request-context';
+
 /**
  * Represents an immutable HTTP response.
  *
@@ -7,7 +9,7 @@
  *
  * @template T - The type of the response data (payload).
  */
-export class Response<T = any> {
+export class Response<T = unknown> {
   /**
    * The timestamp when the response object was instantiated.
    */
@@ -19,15 +21,23 @@ export class Response<T = any> {
    * @param data - The parsed response body.
    * @param status - The HTTP status code (e.g., 200, 404).
    * @param headers - A dictionary of response headers, or null if unavailable.
-   * @param systemCorrelationId - The unique ID correlated with the original request.
+   * @param requestContext - Safe metadata about the originating request.
    */
-  public constructor(
+  private constructor(
     public readonly data: T,
     public readonly status: number,
     public readonly headers: Record<string, string> | null,
-    public readonly systemCorrelationId: string,
+    public readonly requestContext?: RequestContext,
   ) {
     this.timestamp = new Date();
+  }
+
+  /**
+   * The correlation ID from the originating request.
+   * Derived from `requestContext.correlationId` for convenience.
+   */
+  public get systemCorrelationId(): string {
+    return this.requestContext?.correlationId ?? '';
   }
 
   /**
@@ -37,29 +47,28 @@ export class Response<T = any> {
    * @param data - The parsed response body.
    * @param status - The HTTP status code.
    * @param headers - A dictionary of response headers, or null.
-   * @param systemCorrelationId - The unique ID correlated with the original request.
+   * @param requestContext - Safe metadata about the originating request.
    * @returns A new Response instance.
    */
-  public static create<T = any>(
+  public static create<T = unknown>(
     data: T,
     status: number,
     headers: Record<string, string> | null,
-    systemCorrelationId: string,
+    requestContext?: RequestContext,
   ): Response<T> {
-    return new Response<T>(data, status, headers, systemCorrelationId);
+    return new Response<T>(data, status, headers, requestContext);
   }
 
   /**
-   * Creates a debug-friendly representation of the response.
-   *
-   * @returns An object containing the core properties of the response, suitable for logging.
-   * Note: This usually excludes the full body if it's large, but here it includes it.
+   * Creates a debug-friendly, log-safe representation of the response.
+   * Groups request metadata under a `request` key when available.
    */
   public toDebugObject() {
     return {
-      data: this.data,
       status: this.status,
       headers: this.headers,
+      data: this.data,
+      ...(this.requestContext && { request: this.requestContext }),
     };
   }
 }

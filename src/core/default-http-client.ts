@@ -1,9 +1,11 @@
 import {
   HttpClientContract,
-  HttpClientException,
   HttpClientRequestConfig,
   HttpClientResponse,
 } from '../contracts/http-client.contract';
+import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
+import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
+import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 
 /**
  * The default HTTP client instance based on native Fetch API (Node 18+).
@@ -48,11 +50,11 @@ export class FetchHttpClient implements HttpClientContract {
       });
 
       if (!response.ok) {
-        throw new HttpClientException(
-          `Request failed with status ${response.status}`,
+        throw HttpExceptionFactory.createFromResponse(
           response.status,
           responseData as T,
           responseHeaders,
+          `Request failed with status ${response.status}`,
         );
       }
 
@@ -62,16 +64,8 @@ export class FetchHttpClient implements HttpClientContract {
         headers: responseHeaders,
       };
     } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new HttpClientException(
-          'Request Timeout',
-          undefined,
-          undefined,
-          undefined,
-          'ECONNABORTED',
-        );
-      }
-      throw error;
+      if (error instanceof BaseAdapterException) throw error;
+      throw NetworkExceptionFactory.createFromNativeError(error);
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);

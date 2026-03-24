@@ -107,8 +107,8 @@ describe('HttpAdapter', () => {
       const interceptor: HttpInterceptor = {
         onRequest: async (req) => req,
         onResponse: async (res) => res,
-        onError: async () => {
-          return new Error('intercepted error');
+        onError: async (err) => {
+          return Object.assign(err, { message: 'intercepted error' });
         },
       };
 
@@ -122,8 +122,8 @@ describe('HttpAdapter', () => {
       mockHttpClient.request.mockRejectedValue(error);
 
       const interceptor: HttpInterceptor = {
-        onError: async () => {
-          return new Error('partial interceptor error');
+        onError: async (err) => {
+          return Object.assign(err, { message: 'partial interceptor error' });
         },
       };
 

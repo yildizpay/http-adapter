@@ -1,3 +1,4 @@
+import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { Request } from '../models/request';
 import { Response } from '../models/response';
 
@@ -43,7 +44,7 @@ export interface HttpErrorInterceptor {
    * @param request - The request during which the error occurred.
    * @returns A promise that resolves to a handled error or alternative result.
    */
-  onError(error: unknown, request: Request): Promise<unknown>;
+  onError(error: BaseAdapterException, request: Request): Promise<BaseAdapterException>;
 }
 
 export type HttpInterceptor = Partial<HttpRequestInterceptor> &

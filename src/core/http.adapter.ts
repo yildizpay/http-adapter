@@ -1,11 +1,13 @@
 import { defaultHttpClient } from './default-http-client';
 import { Request } from '../models/request';
 import { Response } from '../models/response';
+import { RequestContext } from '../models/request-context';
 import { HttpInterceptor } from '../contracts/http-interceptor.contract';
 import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { RetryExecutor } from '../resilience/retry-executor';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 import { HttpClientContract } from '../contracts/http-client.contract';
+import { ErrorConverter } from './error.converter';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -97,6 +99,8 @@ export class HttpAdapter {
       }
     }
 
+    let requestContext: RequestContext | undefined;
+
     try {
       /* Build final URL with query parameters */
       const url = new URL(processedRequest.endpoint, processedRequest.baseUrl);
@@ -105,11 +109,17 @@ export class HttpAdapter {
         url.search = searchParams.toString();
       }
 
+      requestContext = {
+        method: processedRequest.method as string,
+        url: url.toString(),
+        correlationId: processedRequest.systemCorrelationId,
+      };
+
       processedRequest.setTimestamp(new Date());
 
       /* Delegate to the underlying HTTP client */
       const clientResponse = await this.httpClient.request<T>({
-        url: url.toString(),
+        url: requestContext.url!,
         method: processedRequest.method,
         data: processedRequest.body,
         headers: processedRequest.headers,
@@ -121,21 +131,21 @@ export class HttpAdapter {
         clientResponse.data,
         clientResponse.status,
         clientResponse.headers ?? null,
-        processedRequest.systemCorrelationId,
+        requestContext,
       );
 
       /* Apply response-side interceptors in registration order */
       for (const interceptor of this.interceptors) {
         if (interceptor.onResponse) {
-          response = await interceptor.onResponse(response);
+          response = (await interceptor.onResponse(response)) as Response<T>;
         }
       }
 
       return response;
     } catch (error) {
-      let propagatedError = error;
+      let propagatedError = ErrorConverter.toAdapterException(error, requestContext);
 
-      /* Allow interceptors to observe or mutate the error */
+      /* Apply error-side interceptors in registration order */
       for (const interceptor of this.interceptors) {
         if (interceptor.onError) {
           propagatedError = await interceptor.onError(propagatedError, processedRequest);
