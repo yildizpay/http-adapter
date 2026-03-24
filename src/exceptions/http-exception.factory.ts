@@ -1,4 +1,5 @@
 import { Response } from '../models/response';
+import { RequestContext } from '../models/request-context';
 import {
   HttpException,
   BadRequestException,
@@ -146,9 +147,9 @@ export class HttpExceptionFactory {
     message?: string,
     code?: string,
     cause?: unknown,
-    correlationId?: string,
+    requestContext?: RequestContext,
   ): HttpException<T> {
-    const response = Response.create(data as T, status, headers ?? null, correlationId);
+    const response = Response.create(data as T, status, headers ?? null, requestContext);
     const ExceptionClass = HttpStatusExceptionMap[status];
 
     if (ExceptionClass) {

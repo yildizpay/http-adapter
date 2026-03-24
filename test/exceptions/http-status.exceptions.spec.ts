@@ -309,4 +309,83 @@ describe('HttpStatusExceptions', () => {
       expect(error.getRetryAfterMs()).toBe(45000);
     });
   });
+
+  describe('isRetryable', () => {
+    const retryable = [429, 502, 503, 504];
+    const nonRetryable = [400, 401, 403, 404, 405, 422, 500, 501];
+
+    retryable.forEach((status) => {
+      it(`returns true for status ${status}`, () => {
+        const response = Response.create(null, status, null);
+        const error = new (defaultTestCases.find((c) => c.status === status)?.cls ?? HttpException)(
+          response,
+        );
+        expect(error.isRetryable()).toBe(true);
+      });
+    });
+
+    nonRetryable.forEach((status) => {
+      it(`returns false for status ${status}`, () => {
+        const response = Response.create(null, status, null);
+        const error = new (defaultTestCases.find((c) => c.status === status)?.cls ?? HttpException)(
+          response,
+        );
+        expect(error.isRetryable()).toBe(false);
+      });
+    });
+  });
+
+  describe('toJSON', () => {
+    it('includes name, message, code, stack, and response fields', () => {
+      const response = Response.create(
+        { field: 'email' },
+        400,
+        { 'content-type': 'application/json' },
+        { correlationId: 'corr-123', method: 'POST', url: 'https://api.example.com/pay' },
+      );
+      const error = new BadRequestException(response, 'Validation failed', 'ERR_VALIDATION');
+      const json = error.toJSON();
+
+      expect(json.name).toBe('BadRequestException');
+      expect(json.message).toBe('Validation failed');
+      expect(json.code).toBe('ERR_VALIDATION');
+      expect(json.stack).toBeDefined();
+      expect(json.response).toMatchObject({
+        status: 400,
+        request: { method: 'POST', url: 'https://api.example.com/pay', correlationId: 'corr-123' },
+        data: { field: 'email' },
+      });
+    });
+
+    it('omits request from response when no context set', () => {
+      const response = Response.create(null, 404, null);
+      const error = new NotFoundException(response);
+      const json = error.toJSON() as { response: Record<string, unknown> };
+
+      expect('request' in json.response).toBe(false);
+    });
+
+    it('is JSON.stringify compatible', () => {
+      const response = Response.create({ msg: 'gone' }, 410, null);
+      const error = new GoneException(response);
+
+      expect(() => JSON.stringify(error)).not.toThrow();
+      const parsed = structuredClone(error);
+      expect(parsed.name).toBe('GoneException');
+      expect(parsed.response.status).toBe(410);
+    });
+
+    it('serializes cause when it is a BaseAdapterException', () => {
+      const inner = new BadRequestException(Response.create(null, 400, null), 'Original');
+      const outer = new UnprocessableEntityException(
+        Response.create(null, 422, null),
+        'Wrapped',
+        undefined,
+        inner,
+      );
+      const json = outer.toJSON() as { cause: Record<string, unknown> };
+
+      expect(json.cause).toMatchObject({ name: 'BadRequestException', message: 'Original' });
+    });
+  });
 });

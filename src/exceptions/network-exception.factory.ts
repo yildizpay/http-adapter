@@ -4,7 +4,9 @@ import {
   DnsResolutionException,
   TimeoutException,
   SocketResetException,
+  HostUnreachableException,
 } from './network.exceptions';
+import { RequestContext } from '../models/request-context';
 
 /**
  * Factory responsible for converting raw transport-level errors into semantic
@@ -15,6 +17,7 @@ import {
  * - `ECONNREFUSED` → {@link ConnectionRefusedException}
  * - `ECONNRESET` → {@link SocketResetException}
  * - `ENOTFOUND` / `EAI_AGAIN` → {@link DnsResolutionException}
+ * - `EHOSTUNREACH` / `ENETUNREACH` → {@link HostUnreachableException}
  * - All other errors → generic {@link NetworkException}
  */
 export class NetworkExceptionFactory {
@@ -26,35 +29,42 @@ export class NetworkExceptionFactory {
    * (strings, plain objects, etc.) are wrapped in a generic {@link NetworkException}.
    *
    * @param error - The raw error thrown by the underlying transport layer.
-   * @param url - The request URL associated with this error, for debugging context.
+   * @param requestContext - Safe metadata about the originating request.
    * @returns A strongly-typed {@link NetworkException} subclass.
    */
-  public static createFromNativeError(error: unknown, url?: string): NetworkException {
+  public static createFromNativeError(
+    error: unknown,
+    requestContext?: RequestContext,
+  ): NetworkException {
     if (error instanceof Error) {
       const code = 'code' in error ? String(error.code) : undefined;
 
       if (error.name === 'AbortError' || code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
-        return new TimeoutException(error.message, code || 'ECONNABORTED', error, url);
+        return new TimeoutException(error.message, code || 'ECONNABORTED', error, requestContext);
       }
 
       if (code === 'ECONNREFUSED') {
-        return new ConnectionRefusedException(error.message, code, error, url);
+        return new ConnectionRefusedException(error.message, code, error, requestContext);
       }
 
       if (code === 'ECONNRESET') {
-        return new SocketResetException(error.message, code, error, url);
+        return new SocketResetException(error.message, code, error, requestContext);
       }
 
       if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
-        return new DnsResolutionException(error.message, code, error, url);
+        return new DnsResolutionException(error.message, code, error, requestContext);
       }
 
-      return new NetworkException(error.message, code, error, url);
+      if (code === 'EHOSTUNREACH' || code === 'ENETUNREACH') {
+        return new HostUnreachableException(error.message, code, error, requestContext);
+      }
+
+      return new NetworkException(error.message, code, error, requestContext);
     }
 
     const message = this.extractMessage(error);
 
-    return new NetworkException(message, undefined, undefined, url);
+    return new NetworkException(message, undefined, undefined, requestContext);
   }
 
   /**

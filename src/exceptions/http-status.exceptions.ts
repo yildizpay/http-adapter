@@ -11,6 +11,18 @@ export class HttpException<T = unknown> extends BaseAdapterException {
     Object.setPrototypeOf(this, HttpException.prototype);
   }
 
+  public override toJSON(): Record<string, unknown> {
+    return {
+      ...super.toJSON(),
+      response: {
+        status: this.response.status,
+        data: this.response.data,
+        headers: this.response.headers,
+        ...(this.response.requestContext && { request: this.response.requestContext }),
+      },
+    };
+  }
+
   public isClientError(): boolean {
     return this.response.status >= 400 && this.response.status < 500;
   }
@@ -375,6 +387,10 @@ export class TooManyRequestsException<T = unknown> extends HttpException<T> {
     this.name = 'TooManyRequestsException';
     Object.setPrototypeOf(this, TooManyRequestsException.prototype);
   }
+
+  public override isRetryable(): boolean {
+    return true;
+  }
 }
 
 export class RequestHeaderFieldsTooLargeException<T = unknown> extends HttpException<T> {
@@ -440,6 +456,10 @@ export class BadGatewayException<T = unknown> extends HttpException<T> {
     this.name = 'BadGatewayException';
     Object.setPrototypeOf(this, BadGatewayException.prototype);
   }
+
+  public override isRetryable(): boolean {
+    return true;
+  }
 }
 
 export class ServiceUnavailableException<T = unknown> extends HttpException<T> {
@@ -453,6 +473,10 @@ export class ServiceUnavailableException<T = unknown> extends HttpException<T> {
     this.name = 'ServiceUnavailableException';
     Object.setPrototypeOf(this, ServiceUnavailableException.prototype);
   }
+
+  public override isRetryable(): boolean {
+    return true;
+  }
 }
 
 export class GatewayTimeoutException<T = unknown> extends HttpException<T> {
@@ -465,6 +489,10 @@ export class GatewayTimeoutException<T = unknown> extends HttpException<T> {
     super(response, message, code, cause);
     this.name = 'GatewayTimeoutException';
     Object.setPrototypeOf(this, GatewayTimeoutException.prototype);
+  }
+
+  public override isRetryable(): boolean {
+    return true;
   }
 }
 

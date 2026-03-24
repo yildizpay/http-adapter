@@ -2,6 +2,7 @@ import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { UnknownException } from '../exceptions/unknown.exception';
 import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
+import { RequestContext } from '../models/request-context';
 
 /**
  * Shape of an HTTP-like error object (e.g. Axios error, custom client error).
@@ -20,11 +21,6 @@ interface HttpLikeError {
   };
 }
 
-export interface ErrorContext {
-  correlationId?: string;
-  url?: string;
-}
-
 /**
  * Universal error converter responsible for normalizing any error received from
  * an HttpClient implementation into a standardized BaseAdapterException hierarchy.
@@ -34,10 +30,13 @@ export class ErrorConverter {
    * Coerces any unknown error into a strongly-typed BaseAdapterException.
    *
    * @param error - The raw error to convert.
-   * @param context - Optional request context (correlationId, url) to attach to the exception.
+   * @param requestContext - Safe metadata about the originating request.
    * @returns A standardized exception (HttpException, NetworkException, or UnknownException).
    */
-  public static toAdapterException(error: unknown, context?: ErrorContext): BaseAdapterException {
+  public static toAdapterException(
+    error: unknown,
+    requestContext?: RequestContext,
+  ): BaseAdapterException {
     if (error instanceof BaseAdapterException) return error;
 
     if (error && typeof error === 'object') {
@@ -56,17 +55,21 @@ export class ErrorConverter {
           message,
           errObj.code,
           error,
-          context?.correlationId,
+          requestContext,
         );
       }
 
       if (errObj.code || errObj.name === 'AbortError') {
-        return NetworkExceptionFactory.createFromNativeError(error, context?.url);
+        return NetworkExceptionFactory.createFromNativeError(error, requestContext);
       }
 
-      if (error instanceof Error) return new UnknownException(error.message, error);
+      if (error instanceof Error) return new UnknownException(error.message, error, requestContext);
     }
 
-    return new UnknownException(typeof error === 'string' ? error : 'Unknown Adapter Error', error);
+    return new UnknownException(
+      typeof error === 'string' ? error : 'Unknown Adapter Error',
+      error,
+      requestContext,
+    );
   }
 }

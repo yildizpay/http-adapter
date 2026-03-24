@@ -5,6 +5,7 @@ import {
   DnsResolutionException,
   TimeoutException,
   SocketResetException,
+  HostUnreachableException,
 } from '../../src/exceptions/network.exceptions';
 
 function makeErrnoError(message: string, code: string): NodeJS.ErrnoException {
@@ -67,6 +68,21 @@ describe('NetworkExceptionFactory', () => {
     expect(exception.cause).toBe(error);
   });
 
+  it('creates HostUnreachableException from EHOSTUNREACH code', () => {
+    const error = makeErrnoError('No route to host', 'EHOSTUNREACH');
+    const exception = NetworkExceptionFactory.createFromNativeError(error);
+    expect(exception).toBeInstanceOf(HostUnreachableException);
+    expect(exception.code).toBe('EHOSTUNREACH');
+    expect(exception.cause).toBe(error);
+  });
+
+  it('creates HostUnreachableException from ENETUNREACH code', () => {
+    const error = makeErrnoError('Network unreachable', 'ENETUNREACH');
+    const exception = NetworkExceptionFactory.createFromNativeError(error);
+    expect(exception).toBeInstanceOf(HostUnreachableException);
+    expect(exception.code).toBe('ENETUNREACH');
+  });
+
   it('creates generic NetworkException for unknown Error codes', () => {
     const error = makeErrnoError('Some random network OS error', 'E_UNKNOWN');
     const exception = NetworkExceptionFactory.createFromNativeError(error);
@@ -74,14 +90,12 @@ describe('NetworkExceptionFactory', () => {
     expect(exception.code).toBe('E_UNKNOWN');
   });
 
-  it('attaches url to the created exception when provided', () => {
+  it('attaches requestContext to the created exception when provided', () => {
     const error = makeErrnoError('refused', 'ECONNREFUSED');
-    const exception = NetworkExceptionFactory.createFromNativeError(
-      error,
-      'https://api.example.com/pay',
-    );
+    const ctx = { method: 'POST', url: 'https://api.example.com/pay', correlationId: 'abc' };
+    const exception = NetworkExceptionFactory.createFromNativeError(error, ctx);
     expect(exception).toBeInstanceOf(ConnectionRefusedException);
-    expect(exception.url).toBe('https://api.example.com/pay');
+    expect(exception.requestContext).toEqual(ctx);
   });
 
   it('handles non-Error objects by wrapping them generically', () => {
@@ -94,12 +108,10 @@ describe('NetworkExceptionFactory', () => {
     expect(exception2.message).toBe('Unknown Network Error');
   });
 
-  it('attaches url to non-Error exceptions when provided', () => {
-    const exception = NetworkExceptionFactory.createFromNativeError(
-      'Just a string error',
-      'https://api.example.com/pay',
-    );
-    expect(exception.url).toBe('https://api.example.com/pay');
+  it('attaches requestContext to non-Error exceptions when provided', () => {
+    const ctx = { url: 'https://api.example.com/pay' };
+    const exception = NetworkExceptionFactory.createFromNativeError('Just a string error', ctx);
+    expect(exception.requestContext).toEqual(ctx);
   });
 });
 
@@ -129,13 +141,74 @@ describe('NetworkException Subclasses', () => {
     expect(error.name).toBe('SocketResetException');
   });
 
-  it('preserves url on NetworkException subclasses', () => {
+  it('instantiates HostUnreachableException with defaults', () => {
+    const error = new HostUnreachableException();
+    expect(error.message).toBe('Host Unreachable');
+    expect(error.code).toBe('EHOSTUNREACH');
+    expect(error.name).toBe('HostUnreachableException');
+  });
+
+  it('preserves requestContext on NetworkException subclasses', () => {
+    const ctx = { method: 'POST', url: 'https://api.example.com/pay' };
     const error = new ConnectionRefusedException(
       'Connection Refused',
       'ECONNREFUSED',
       undefined,
-      'https://api.example.com/pay',
+      ctx,
     );
-    expect(error.url).toBe('https://api.example.com/pay');
+    expect(error.requestContext).toEqual(ctx);
+  });
+
+  describe('isRetryable', () => {
+    it('returns true for TimeoutException', () => {
+      expect(new TimeoutException().isRetryable()).toBe(true);
+    });
+
+    it('returns true for SocketResetException', () => {
+      expect(new SocketResetException().isRetryable()).toBe(true);
+    });
+
+    it('returns true for ConnectionRefusedException', () => {
+      expect(new ConnectionRefusedException().isRetryable()).toBe(true);
+    });
+
+    it('returns false for DnsResolutionException', () => {
+      expect(new DnsResolutionException().isRetryable()).toBe(false);
+    });
+
+    it('returns false for HostUnreachableException', () => {
+      expect(new HostUnreachableException().isRetryable()).toBe(false);
+    });
+
+    it('returns false for generic NetworkException', () => {
+      expect(new NetworkException().isRetryable()).toBe(false);
+    });
+  });
+
+  describe('toJSON', () => {
+    it('includes requestContext grouped under request key when set', () => {
+      const ctx = { method: 'POST', url: 'https://api.example.com/pay', correlationId: 'abc' };
+      const error = new TimeoutException('Connection timed out', 'ETIMEDOUT', undefined, ctx);
+      const json = error.toJSON();
+
+      expect(json.name).toBe('TimeoutException');
+      expect(json.request).toEqual(ctx);
+    });
+
+    it('omits request when no context set', () => {
+      const error = new TimeoutException();
+      const json = error.toJSON();
+
+      expect('request' in json).toBe(false);
+    });
+
+    it('is JSON.stringify compatible', () => {
+      const ctx = { method: 'POST', url: 'https://api.example.com' };
+      const error = new ConnectionRefusedException('Refused', 'ECONNREFUSED', undefined, ctx);
+      expect(() => JSON.stringify(error)).not.toThrow();
+      const parsed = structuredClone(error);
+      expect(parsed.name).toBe('ConnectionRefusedException');
+      expect(parsed.requestContext?.url).toBe('https://api.example.com');
+    });
   });
 });

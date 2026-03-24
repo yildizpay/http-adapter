@@ -42,17 +42,25 @@ describe('ErrorConverter', () => {
     });
   });
 
-  describe('context propagation (correlationId, url)', () => {
+  describe('requestContext propagation', () => {
     it('should attach correlationId to HttpException response when provided', () => {
       const rawError = { status: 404, message: 'Not Found' };
       const result = ErrorConverter.toAdapterException(rawError, {
         correlationId: 'corr-abc-123',
+        method: 'GET',
+        url: 'https://api.example.com/payments/123',
       });
       expect(result).toBeInstanceOf(NotFoundException);
-      expect((result as NotFoundException).response.systemCorrelationId).toBe('corr-abc-123');
+      const exc = result as NotFoundException;
+      expect(exc.response.systemCorrelationId).toBe('corr-abc-123');
+      expect(exc.response.requestContext).toMatchObject({
+        method: 'GET',
+        url: 'https://api.example.com/payments/123',
+        correlationId: 'corr-abc-123',
+      });
     });
 
-    it('should not fail when context is omitted', () => {
+    it('should not fail when requestContext is omitted', () => {
       const rawError = { status: 400, message: 'Bad' };
       expect(() => ErrorConverter.toAdapterException(rawError)).not.toThrow();
     });
@@ -187,14 +195,13 @@ describe('ErrorConverter', () => {
       expect(result).toBeInstanceOf(NetworkException);
     });
 
-    it('should attach url from context to NetworkException', () => {
+    it('should attach requestContext to NetworkException when provided', () => {
       const rawError = new Error('refused');
       (rawError as NodeJS.ErrnoException).code = 'ECONNREFUSED';
-      const result = ErrorConverter.toAdapterException(rawError, {
-        url: 'https://api.example.com/pay',
-      });
+      const ctx = { method: 'POST', url: 'https://api.example.com/pay' };
+      const result = ErrorConverter.toAdapterException(rawError, ctx);
       expect(result).toBeInstanceOf(ConnectionRefusedException);
-      expect((result as ConnectionRefusedException).url).toBe('https://api.example.com/pay');
+      expect((result as ConnectionRefusedException).requestContext).toEqual(ctx);
     });
   });
 
@@ -249,6 +256,23 @@ describe('ErrorConverter', () => {
     it('should wrap an empty plain object into UnknownException', () => {
       const result = ErrorConverter.toAdapterException({});
       expect(result).toBeInstanceOf(UnknownException);
+    });
+  });
+
+  describe('UnknownException requestContext propagation', () => {
+    it('should attach requestContext to UnknownException from plain Error', () => {
+      const rawError = new Error('Something went wrong');
+      const ctx = { method: 'DELETE', url: 'https://api.example.com/resource/1' };
+      const result = ErrorConverter.toAdapterException(rawError, ctx) as UnknownException;
+      expect(result).toBeInstanceOf(UnknownException);
+      expect(result.requestContext).toEqual(ctx);
+    });
+
+    it('should attach requestContext to UnknownException from primitive', () => {
+      const ctx = { method: 'GET', url: 'https://api.example.com/resource' };
+      const result = ErrorConverter.toAdapterException('boom', ctx) as UnknownException;
+      expect(result).toBeInstanceOf(UnknownException);
+      expect(result.requestContext).toEqual(ctx);
     });
   });
 

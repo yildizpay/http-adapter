@@ -1,6 +1,7 @@
 import { defaultHttpClient } from './default-http-client';
 import { Request } from '../models/request';
 import { Response } from '../models/response';
+import { RequestContext } from '../models/request-context';
 import { HttpInterceptor } from '../contracts/http-interceptor.contract';
 import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { RetryExecutor } from '../resilience/retry-executor';
@@ -98,7 +99,7 @@ export class HttpAdapter {
       }
     }
 
-    let requestUrl: string | undefined;
+    let requestContext: RequestContext | undefined;
 
     try {
       /* Build final URL with query parameters */
@@ -107,13 +108,18 @@ export class HttpAdapter {
       if (searchParams.toString()) {
         url.search = searchParams.toString();
       }
-      requestUrl = url.toString();
+
+      requestContext = {
+        method: processedRequest.method as string,
+        url: url.toString(),
+        correlationId: processedRequest.systemCorrelationId,
+      };
 
       processedRequest.setTimestamp(new Date());
 
       /* Delegate to the underlying HTTP client */
       const clientResponse = await this.httpClient.request<T>({
-        url: requestUrl,
+        url: requestContext.url!,
         method: processedRequest.method,
         data: processedRequest.body,
         headers: processedRequest.headers,
@@ -125,7 +131,7 @@ export class HttpAdapter {
         clientResponse.data,
         clientResponse.status,
         clientResponse.headers ?? null,
-        processedRequest.systemCorrelationId,
+        requestContext,
       );
 
       /* Apply response-side interceptors in registration order */
@@ -137,10 +143,7 @@ export class HttpAdapter {
 
       return response;
     } catch (error) {
-      let propagatedError = ErrorConverter.toAdapterException(error, {
-        correlationId: processedRequest.systemCorrelationId,
-        url: requestUrl,
-      });
+      let propagatedError = ErrorConverter.toAdapterException(error, requestContext);
 
       /* Apply error-side interceptors in registration order */
       for (const interceptor of this.interceptors) {

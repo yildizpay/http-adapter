@@ -215,7 +215,12 @@ describe('HttpExceptionFactory', () => {
     expect(error).toBeInstanceOf(HttpException);
   });
 
-  it('should attach correlationId to the response when provided', () => {
+  it('should attach requestContext to the response when provided', () => {
+    const ctx = {
+      method: 'POST',
+      url: 'https://api.example.com/payments/123',
+      correlationId: 'corr-xyz-789',
+    };
     const error = HttpExceptionFactory.createFromResponse(
       404,
       { detail: 'not found' },
@@ -223,13 +228,16 @@ describe('HttpExceptionFactory', () => {
       undefined,
       undefined,
       undefined,
-      'corr-xyz-789',
+      ctx,
     );
+
     expect(error.response.systemCorrelationId).toBe('corr-xyz-789');
+    expect(error.response.requestContext).toEqual(ctx);
   });
 
-  it('should leave correlationId empty when not provided', () => {
+  it('should leave systemCorrelationId empty when no context provided', () => {
     const error = HttpExceptionFactory.createFromResponse(500);
     expect(error.response.systemCorrelationId).toBe('');
+    expect(error.response.requestContext).toBeUndefined();
   });
 });
