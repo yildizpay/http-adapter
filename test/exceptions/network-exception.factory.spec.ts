@@ -205,10 +205,11 @@ describe('NetworkException Subclasses', () => {
     it('is JSON.stringify compatible', () => {
       const ctx = { method: 'POST', url: 'https://api.example.com' };
       const error = new ConnectionRefusedException('Refused', 'ECONNREFUSED', undefined, ctx);
+      const json = error.toJSON();
+
       expect(() => JSON.stringify(error)).not.toThrow();
-      const parsed = structuredClone(error);
-      expect(parsed.name).toBe('ConnectionRefusedException');
-      expect(parsed.requestContext?.url).toBe('https://api.example.com');
+      expect(json.name).toBe('ConnectionRefusedException');
+      expect((json.request as Record<string, unknown>).url).toBe('https://api.example.com');
     });
   });
 });

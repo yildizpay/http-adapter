@@ -366,13 +366,12 @@ describe('HttpStatusExceptions', () => {
     });
 
     it('is JSON.stringify compatible', () => {
-      const response = Response.create({ msg: 'gone' }, 410, null);
-      const error = new GoneException(response);
+      const error = new GoneException(Response.create({ msg: 'gone' }, 410, null));
+      const json = error.toJSON();
 
       expect(() => JSON.stringify(error)).not.toThrow();
-      const parsed = structuredClone(error);
-      expect(parsed.name).toBe('GoneException');
-      expect(parsed.response.status).toBe(410);
+      expect(json.name).toBe('GoneException');
+      expect((json.response as Record<string, unknown>).status).toBe(410);
     });
 
     it('serializes cause when it is a BaseAdapterException', () => {

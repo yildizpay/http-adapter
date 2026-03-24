@@ -6,16 +6,17 @@
 ![NPM Version](https://img.shields.io/npm/v/@yildizpay/http-adapter)
 ![License](https://img.shields.io/npm/l/@yildizpay/http-adapter)
 
-Node.js tabanlı kurumsal seviye (enterprise-grade) uygulamalar için tasarlanmış profesyonel, dayanıklı (robust) ve yüksek oranda yapılandırılabilir bir HTTP istemci (client) adaptörü. Akıcı (fluent) bir API, yerleşik ağ direnci (resilience) desenleri ve güçlü bir önleyici (interceptor) sistemi sunar. Dış bağımlılık bulundurmayan (zero-dependency) paketin çekirdeği **Node.js Native Fetch API** kullanır ancak tercih edilen farklı özel HTTP istemcilerine de (Custom Clients) kolayca genişletilebilir.
+Node.js tabanlı kurumsal uygulamalar için tasarlanmış profesyonel ve yüksek oranda yapılandırılabilir bir HTTP client adaptörü. Fluent API, built-in resilience pattern'ları, güçlü bir interceptor sistemi ve kapsamlı bir exception hiyerarşisi sunar. Zero-dependency olan paketin çekirdeği **Node.js Native Fetch API** kullanır; ancak istenen farklı custom HTTP client'lara da kolayca genişletilebilir.
 
 ## Temel Özellikler
 
-- **Akıcı İstek Oluşturucu (Fluent Request Builder):** Sezgisel ve zincirlenebilir (chainable) bir API ile karmaşık HTTP isteklerini kolayca oluşturun.
-- **Önleyici Mimarisi (Interceptor Architecture):** Loglama, kimlik doğrulama, hata yönetimi ve veri dönüşümü gibi ara yazılım (middleware) işlemlerini zahmetsizce entegre edin.
-- **Ağ Direnci ve Güvenilirlik (Resilience & Reliability):** Sunucular arası entegrasyonlarda geçici arızaları zarif bir şekilde yönetmek ve zincirleme (cascading) hataları önlemek için üstel geri çekilme (Exponential Backoff vs.) gibi yeniden deneme (retry) politikaları ve yerleşik bir **Devre Kesici (Circuit Breaker)** içerir.
-- **Tip Güvenliği (Type Safety):** Jenerikleri (generics) kullanan tam tiplendirilmiş (fully typed) istek ve yanıtlar ile uygulamanız genelinde tip güvenliği sağlar.
-- **Test Edilebilirlik:** Bağımlılık enjeksiyonu (dependency injection) düşünülerek tasarlandığından, birim testleri (unit mock) yazmak oldukça kolaydır.
-- **Değişmez (Immutable) Tasarım:** Eşzamanlı (concurrent) ortamlarda yan etkileri (side effects) önlemek için çekirdek (core) bileşenler değiştirilemez (immutable) yapıda tasarlanmıştır.
+- **Fluent Request Builder:** Sezgisel ve zincirlenebilir bir API ile karmaşık HTTP isteklerini kolayca oluşturun.
+- **Structured Exception Hierarchy:** Her HTTP durum kodu ve ağ hatası, zengin metadata, `isRetryable()` sinyali ve `toJSON()` desteğiyle ayrı bir exception sınıfına dönüştürülür.
+- **Interceptor Mimarisi:** Loglama, kimlik doğrulama, hata yönetimi ve veri dönüşümü gibi middleware işlemlerini zahmetsizce entegre edin.
+- **Resilience & Reliability:** S2S entegrasyonlarında geçici hataları zarif bir şekilde yönetmek için Exponential Backoff gibi retry policy'ler ve built-in **Circuit Breaker** içerir.
+- **Type Safety:** Generic'ler kullanılarak tam olarak tiplendirilmiş request ve response'lar ile uygulama genelinde tip güvenliği sağlanır.
+- **Test Edilebilirlik:** Dependency injection düşünülerek tasarlandığından mock yazmak oldukça kolaydır.
+- **Immutable Tasarım:** Concurrent ortamlarda side effect'leri önlemek için core bileşenler immutable olarak tasarlanmıştır.
 
 ## Kurulum
 
@@ -29,9 +30,9 @@ pnpm add @yildizpay/http-adapter
 
 ## Kullanım
 
-### 1. Temel İstek Oluşturma
+### 1. Request Oluşturma
 
-İstekleri temiz ve öz bir şekilde oluşturmak için `RequestBuilder` sınıfını kullanın.
+`RequestBuilder` ile istekleri temiz ve öz bir şekilde oluşturun.
 
 ```typescript
 import { RequestBuilder, HttpMethod } from '@yildizpay/http-adapter';
@@ -44,31 +45,31 @@ const request = new RequestBuilder('https://api.example.com')
   .build();
 ```
 
-### 2. Adaptörü Başlatma
+### 2. Adapter'ı Başlatma
 
-İsteğe bağlı önleyiciler (interceptors), yeniden deneme (retry) politikaları ve devre kesici (circuit breaker) ile `HttpAdapter` nesnesini oluşturun.
+İsteğe bağlı interceptor'lar, retry policy ve circuit breaker ile `HttpAdapter` oluşturun.
 
 ```typescript
 import { HttpAdapter, RetryPolicies, CircuitBreaker } from '@yildizpay/http-adapter';
 
 const circuitBreaker = new CircuitBreaker({
   failureThreshold: 5,
-  resetTimeoutMs: 60000, 
+  resetTimeoutMs: 60000,
 });
 
 const adapter = HttpAdapter.create(
   [
-    /* interceptors (önleyiciler) */
+    /* interceptors */
   ],
-  RetryPolicies.exponential(3), // Üstel (exponential) geri çekilme ile 3 defaya kadar yeniden dene
-  undefined,                    // İsteğe bağlı özel HTTP istemcisi (opsiyonel)
-  circuitBreaker                // İsteğe bağlı Devre Kesici (opsiyonel)
+  RetryPolicies.exponential(3), // Exponential backoff ile 3 defaya kadar retry
+  undefined,                    // Opsiyonel custom HTTP client
+  circuitBreaker,               // Opsiyonel Circuit Breaker
 );
 ```
 
-### 3. İstek Gönderme
+### 3. Request Gönderme
 
-İsteği yürütün ve kesin bir şekilde tiplendirilmiş (strongly-typed) yanıtı (response) alın.
+Request'i çalıştırın ve strongly-typed response alın.
 
 ```typescript
 interface UserResponse {
@@ -80,45 +81,215 @@ try {
   const response = await adapter.send<UserResponse>(request);
   console.log('Kullanıcı oluşturuldu:', response.data);
 } catch (error) {
-  console.error('İstek başarısız oldu:', error);
+  console.error('Request başarısız oldu:', error);
 }
 ```
 
-## Direnç ve Yeniden Denemeler (Resilience & Retries)
+## Hata Yönetimi (Error Handling)
 
-Ağ kararsızlığı kaçınılmazdır. Bu adaptör, sağlam yeniden deneme stratejileri tanımlamanıza olanak tanır.
+`@yildizpay/http-adapter`, her türlü ham hatayı — HTTP hataları, OS düzeyindeki ağ hataları veya tamamen beklenmedik exception'lar — yapılandırılmış ve tiplendirilmiş bir exception sınıfına dönüştürür. Bu sayede `catch` bloklarında ham durum kodlarını ya da hata kodlarını elle incelemenize gerek kalmaz.
 
-### Üstel Geri Çekilme (Exponential Backoff)
+### Exception Hiyerarşisi
 
-Yerleşik `ExponentialBackoffPolicy`, denemeler arasında giderek daha uzun süreler (ör. 200ms, 400ms, 800ms) bekler ve "gürleyen sürü" (thundering herd) sorunlarını önlemek için gecikmelere rastgele bir sapma (jitter) ekler.
+```
+BaseAdapterException
+├── HttpException                    (herhangi bir HTTP response hatası)
+│   ├── BadRequestException          (400)
+│   ├── UnauthorizedException        (401)
+│   ├── ForbiddenException           (403)
+│   ├── NotFoundException            (404)
+│   ├── ConflictException            (409)
+│   ├── UnprocessableEntityException (422)
+│   ├── TooManyRequestsException     (429)  ← isRetryable() = true
+│   ├── InternalServerErrorException (500)
+│   ├── BadGatewayException          (502)  ← isRetryable() = true
+│   ├── ServiceUnavailableException  (503)  ← isRetryable() = true
+│   ├── GatewayTimeoutException      (504)  ← isRetryable() = true
+│   └── ... (tüm 4xx / 5xx kodları)
+├── NetworkException                 (OS düzeyindeki bağlantı hataları)
+│   ├── ConnectionRefusedException   (ECONNREFUSED)  ← isRetryable() = true
+│   ├── TimeoutException             (ETIMEDOUT / ECONNABORTED / AbortError)  ← isRetryable() = true
+│   ├── SocketResetException         (ECONNRESET)  ← isRetryable() = true
+│   ├── DnsResolutionException       (ENOTFOUND / EAI_AGAIN)
+│   └── HostUnreachableException     (EHOSTUNREACH / ENETUNREACH)
+├── UnknownException                 (sınıflandırılamayan her türlü hata)
+└── CircuitBreakerOpenException      (circuit açık, request gönderilmedi)
+```
+
+### Exception Türüne Göre Yakalama
+
+```typescript
+import {
+  NotFoundException,
+  TooManyRequestsException,
+  TimeoutException,
+  ConnectionRefusedException,
+  CircuitBreakerOpenException,
+  UnknownException,
+} from '@yildizpay/http-adapter';
+
+try {
+  const response = await adapter.send<PaymentResponse>(request);
+} catch (error) {
+  if (error instanceof NotFoundException) {
+    // HTTP 404 — kaynak bulunamadı
+    console.error('Kaynak bulunamadı:', error.response.data);
+  } else if (error instanceof TooManyRequestsException) {
+    // HTTP 429 — retry'dan önce bekle
+    const retryAfterMs = error.getRetryAfterMs();
+    console.warn(`Rate limit aşıldı. ${retryAfterMs}ms sonra tekrar dene`);
+  } else if (error instanceof TimeoutException) {
+    // ETIMEDOUT / AbortError — downstream servis yavaş
+    console.error('Request timeout:', error.code);
+  } else if (error instanceof ConnectionRefusedException) {
+    // ECONNREFUSED — downstream servis kapalı
+    console.error('Servis kapalı:', error.requestContext?.url);
+  } else if (error instanceof CircuitBreakerOpenException) {
+    // Circuit açık — sunucuya istek gönderilmeden fail fast
+    console.error('Circuit breaker açık. Request gönderilmedi.');
+  } else if (error instanceof UnknownException) {
+    // Beklenmedik bir hata — logla ve araştır
+    console.error('Bilinmeyen hata:', error.toJSON());
+  }
+}
+```
+
+### Type Guard'lar
+
+`instanceof` kullanmadan type narrowing tercih ediyorsanız — fonksiyonel pipeline'larda veya modül sınırlarını geçerken kullanışlıdır — her exception sınıfının karşılık gelen bir type guard'ı mevcuttur:
+
+```typescript
+import {
+  isHttpException,
+  isTimeoutException,
+  isConnectionRefusedException,
+  isCircuitBreakerOpenException,
+} from '@yildizpay/http-adapter';
+
+function handleError(error: unknown): void {
+  if (isTimeoutException(error)) {
+    // TypeScript artık biliyor: error, TimeoutException türünde
+    scheduleRetry(error.requestContext?.url);
+  } else if (isHttpException(error)) {
+    // TypeScript artık biliyor: error, HttpException türünde
+    reportToMonitoring(error.response.status, error.response.data);
+  }
+}
+```
+
+### `isRetryable()` Sinyali
+
+Her exception, hatanın geçici olup olmadığını ve retry'a değer olup olmadığını belirten bir `isRetryable(): boolean` metodu sunar. Custom retry decorator'lar yazarken ya da uygulama katmanında hatayı tekrar denemek isteyip istemediğinize karar verirken kullanışlıdır.
+
+```typescript
+} catch (error) {
+  if (error instanceof BaseAdapterException && error.isRetryable()) {
+    return retryOperation();
+  }
+  throw error;
+}
+```
+
+Retry edilebilir exception'lar: `TooManyRequestsException (429)`, `BadGatewayException (502)`, `ServiceUnavailableException (503)`, `GatewayTimeoutException (504)`, `TimeoutException`, `SocketResetException`, `ConnectionRefusedException`.
+
+### `toJSON()` ile Structured Logging
+
+Tüm exception'lar `toJSON()` metodunu override eder; bu sayede Pino, Winston gibi structured logger'larla tam uyumludur. `JSON.stringify(error)` çağrısı boş `{}` yerine eksiksiz bir log objesi üretir.
+
+```typescript
+} catch (error) {
+  if (error instanceof BaseAdapterException) {
+    logger.error(error.toJSON());
+    // {
+    //   name: 'NotFoundException',
+    //   message: 'Not Found',
+    //   code: 'ERR_NOT_FOUND',
+    //   stack: '...',
+    //   response: {
+    //     status: 404,
+    //     data: { detail: 'Ödeme kaydı bulunamadı' },
+    //     request: { method: 'GET', url: 'https://api.example.com/payments/123', correlationId: 'corr-abc' }
+    //   }
+    // }
+  }
+}
+```
+
+### `RequestContext` — Güvenli Request Metadata
+
+Her exception, kaynak request'ten alınan `RequestContext` objesini (`method`, `url`, `correlationId`) otomatik olarak taşır. Auth token'larının veya kişisel verilerin (PII) loglara sızmasını önlemek amacıyla header ve body bilgileri bu objeden kasıtlı olarak çıkarılmıştır.
+
+```typescript
+} catch (error) {
+  if (error instanceof NetworkException) {
+    logger.warn({
+      event: 'network_failure',
+      exception: error.name,
+      request: error.requestContext, // { method, url, correlationId }
+    });
+  }
+}
+```
+
+### Error Interceptor
+
+Exception'lar business logic'e ulaşmadan önce interceptor seviyesinde yakalanabilir ve dönüştürülebilir.
+
+```typescript
+import {
+  HttpErrorInterceptor,
+  Request,
+  BaseAdapterException,
+  UnauthorizedException,
+} from '@yildizpay/http-adapter';
+
+export class GlobalErrorInterceptor implements HttpErrorInterceptor {
+  async onError(error: BaseAdapterException, request: Request): Promise<never> {
+    if (error instanceof UnauthorizedException) {
+      await this.tokenService.refresh();
+    }
+    // Caller'ın handle edebilmesi için hatayı yeniden fırlat
+    throw error;
+  }
+}
+```
+
+## Resilience & Retry
+
+Ağ kararsızlığı kaçınılmazdır. Bu adaptör, sağlam retry stratejileri tanımlamanıza olanak tanır.
+
+### Exponential Backoff
+
+Built-in `ExponentialBackoffPolicy`, denemeler arasında giderek artan süreler (ör. 200ms, 400ms, 800ms) bekler ve "thundering herd" sorununu önlemek için gecikmelere rastgele jitter ekler.
 
 ```typescript
 import { RetryPolicies } from '@yildizpay/http-adapter';
 
-// 429, 500, 502, 503, 504 durum kodlarında ve ağ hatalarında yeniden dener
+// 429, 502, 503, 504 ve ağ hatalarında retry yapar
 const retryPolicy = RetryPolicies.exponential(5);
 ```
 
-### Devre Kesici (Circuit Breaker)
+### Circuit Breaker
 
-Sisteminizi tamamen çökmüş olan bir sunucuyu beklemekten korumak için `CircuitBreaker` (Devre Kesici) yönteminden yararlanabilirsiniz. Konfigürasyonla belirlenmiş miktarda ardışık hata alındığında devre açılır ve yanıt vermeyen sunucuya gereksiz istek göndermeksizin anında `CircuitBreakerOpenException` fırlatarak cevap verir.
+Tamamen çökmüş bir downstream servisi beklemeye karşı sisteminizi korumak için `CircuitBreaker` kullanabilirsiniz. Belirli sayıda ardışık hata alındığında circuit açılır ve yanıt vermeyen servise gereksiz istek göndermeksizin anında `CircuitBreakerOpenException` fırlatır.
 
 ```typescript
 import { CircuitBreaker } from '@yildizpay/http-adapter';
 
 const breaker = new CircuitBreaker({
-  failureThreshold: 5,         // 5 hatadan sonra devreyi aç
-  resetTimeoutMs: 30000,       // 30 saniye sonra 'yarı-açık' (half-open) test isteği dene
-  successThreshold: 1,         // Yarı-açık durumda 1 başarılı istek sonrası devreyi kapat
+  failureThreshold: 5,         // 5 hatadan sonra circuit'i aç
+  resetTimeoutMs: 30000,       // 30 saniye sonra half-open test isteği gönder
+  successThreshold: 1,         // 1 başarılı half-open request sonrası circuit'i kapat
 });
 ```
 
-## Önleyiciler (Interceptors)
+## Interceptors
 
-**Arayüz Ayrımı Prensibi (ISP)** sayesinde gereksiz tüm metodları uygulamak zorunda kalmazsınız. Tam olarak araya girmek istediğiniz yaşam döngüsüne göre `HttpRequestInterceptor`, `HttpResponseInterceptor` veya `HttpErrorInterceptor` arayüzlerini uygulayabilirsiniz.
+**Interface Segregation Principle (ISP)** sayesinde gereksiz metodları implement etmek zorunda kalmazsınız. Yalnızca ihtiyaç duyduğunuz lifecycle event'e göre `HttpRequestInterceptor`, `HttpResponseInterceptor` veya `HttpErrorInterceptor` interface'ini implement edebilirsiniz.
 
-### 1. İstek Önleyici (Örn: Kimlik Doğrulama)
-İstekler yola çıkmadan önce `Authorization` (Yetkilendirme) gibi başlıkları otomatik ekleyebilirsiniz.
+### 1. Request Interceptor (Örn: Auth Token)
+
+Request'ler gönderilmeden önce `Authorization` gibi header'ları otomatik ekleyebilirsiniz.
 
 ```typescript
 import { HttpRequestInterceptor, Request } from '@yildizpay/http-adapter';
@@ -131,8 +302,9 @@ export class AuthInterceptor implements HttpRequestInterceptor {
 }
 ```
 
-### 2. Yanıt Önleyici (Örn: Veri İzleme ve Dönüşüm)
-Projeye giren tüm başarılı verileri merkezi olarak şekillendirebilir veya loglayabilirsiniz.
+### 2. Response Interceptor (Örn: Veri Dönüşümü)
+
+Gelen tüm response'ları merkezi olarak şekillendirebilir veya loglayabilirsiniz.
 
 ```typescript
 import { HttpResponseInterceptor, Response } from '@yildizpay/http-adapter';
@@ -140,25 +312,30 @@ import { HttpResponseInterceptor, Response } from '@yildizpay/http-adapter';
 export class TransformResponseInterceptor implements HttpResponseInterceptor {
   async onResponse(response: Response): Promise<Response> {
     if (response.status === 201) {
-       console.log('Kaynak başarıyla oluşturuldu!');
+      console.log('Kaynak başarıyla oluşturuldu!');
     }
     return response;
   }
 }
 ```
 
-### 3. Hata Önleyici (Örn: Evrensel Hata Yönetimi)
-Sunucudan gelen hatalı HTTP kodlarını (4xx, 5xx) veya ağ kopmalarını tek bir yerden yakalayıp yönetebilirsiniz.
+### 3. Error Interceptor (Örn: Global Hata Yönetimi)
+
+Sunucudan gelen hatalı HTTP kodlarını (4xx, 5xx) veya ağ hatalarını tek bir yerden yakalayıp yönetebilirsiniz.
 
 ```typescript
-import { HttpErrorInterceptor, Request, HttpClientException } from '@yildizpay/http-adapter';
+import {
+  HttpErrorInterceptor,
+  Request,
+  BaseAdapterException,
+  UnauthorizedException,
+} from '@yildizpay/http-adapter';
 
 export class GlobalErrorInterceptor implements HttpErrorInterceptor {
-  async onError(error: unknown, request: Request): Promise<unknown> {
-    if (error instanceof HttpClientException && error.response?.status === 401) {
-       console.error(`${request.endpoint} uç noktasına yetkisiz erişim! Login sayfasına yönlendiriliyor...`);
+  async onError(error: BaseAdapterException, request: Request): Promise<never> {
+    if (error instanceof UnauthorizedException) {
+      console.error(`${error.requestContext?.url} endpoint'ine yetkisiz erişim!`);
     }
-    // Hatayı fırlatmaya devam edebilir veya varsayılan bir veri (fallback) dönebilirsiniz
     throw error;
   }
 }
@@ -166,7 +343,7 @@ export class GlobalErrorInterceptor implements HttpErrorInterceptor {
 
 ## Katkıda Bulunma
 
-Katkılarınızı her zaman bekliyoruz! Lütfen bir "Pull Request" göndermekten çekinmeyin.
+Katkılarınızı her zaman bekliyoruz! Lütfen bir Pull Request göndermekten çekinmeyin.
 
 ## Lisans
 

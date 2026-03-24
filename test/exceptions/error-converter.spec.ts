@@ -274,6 +274,19 @@ describe('ErrorConverter', () => {
       expect(result).toBeInstanceOf(UnknownException);
       expect(result.requestContext).toEqual(ctx);
     });
+
+    it('should include request in toJSON when requestContext is set', () => {
+      const ctx = { method: 'POST', url: 'https://api.example.com/pay' };
+      const result = ErrorConverter.toAdapterException(new Error('oops'), ctx) as UnknownException;
+      const json = result.toJSON();
+      expect(json.request).toEqual(ctx);
+    });
+
+    it('should omit request from toJSON when no requestContext', () => {
+      const result = ErrorConverter.toAdapterException(new Error('oops')) as UnknownException;
+      const json = result.toJSON();
+      expect('request' in json).toBe(false);
+    });
   });
 
   describe('UnknownException and NetworkException default constructors', () => {
