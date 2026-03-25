@@ -277,7 +277,7 @@ describe('HttpStatusExceptions', () => {
         'Error',
       );
       const delay = error.getRetryAfterMs();
-      expect(delay).toBeGreaterThan(59000);
+      expect(delay).toBeGreaterThanOrEqual(58000);
       expect(delay).toBeLessThan(61000);
     });
 

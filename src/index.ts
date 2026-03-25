@@ -24,6 +24,12 @@ export * from './resilience/circuit-breaker/circuit-state.enum';
 export * from './resilience/circuit-breaker/circuit-breaker-options';
 export * from './resilience/circuit-breaker/circuit-breaker';
 
+// Auth
+export * from './auth/token-provider';
+export * from './auth/bearer-auth.interceptor';
+export * from './auth/basic-auth.interceptor';
+export * from './auth/api-key.interceptor';
+
 // Common
 export * from './common/enums/http-method.enum';
 export * from './common/types/http.types';
