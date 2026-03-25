@@ -1,25 +1,5 @@
 import { RetryPolicy } from '../../contracts/retry-policy.contract';
-
-/**
- * Represents an error encountered during an HTTP request, providing details
- * about the failure such as status codes or network error identifiers.
- */
-interface HttpNetworkError {
-  /**
-   * An optional error code indicating the type of network failure, such as 'ECONNABORTED'.
-   */
-  code?: string;
-
-  /**
-   * The response object received from the server, if the request reached the server.
-   */
-  response?: {
-    /**
-     * The HTTP status code returned by the server (e.g., 429, 500, 503).
-     */
-    status?: number;
-  };
-}
+import { BaseAdapterException } from '../../exceptions/base-adapter.exception';
 
 /**
  * A retry policy that implements an exponential backoff strategy.
@@ -40,35 +20,17 @@ export class ExponentialBackoffPolicy extends RetryPolicy {
   }
 
   /**
-   * Determines if a request should be retried based on the error.
+   * Determines if the operation should be retried based on the error.
    *
-   * Retries on:
-   * - 429 (Too Many Requests)
-   * - 500 (Internal Server Error)
-   * - 502 (Bad Gateway)
-   * - 503 (Service Unavailable)
-   * - 504 (Gateway Timeout)
-   * - ECONNABORTED (Connection Aborted)
+   * Delegates the decision to {@link BaseAdapterException.isRetryable}, which encodes
+   * the retryability contract for every exception in the hierarchy. Non-adapter errors
+   * (i.e. anything not converted by `ErrorConverter`) are never retried.
    *
    * @param error - The error encountered.
-   * @returns `true` if the error is transient and retryable; otherwise, `false`.
+   * @returns `true` if the error is retryable; otherwise `false`.
    */
   public retryOn(error: unknown): boolean {
-    if (typeof error !== 'object' || error === null) {
-      return false;
-    }
-
-    const httpError = error as HttpNetworkError;
-    const status = httpError?.response?.status;
-
-    return (
-      status === 429 ||
-      status === 500 ||
-      status === 502 ||
-      status === 503 ||
-      status === 504 ||
-      httpError?.code === 'ECONNABORTED'
-    );
+    return error instanceof BaseAdapterException && error.isRetryable();
   }
 
   /**
