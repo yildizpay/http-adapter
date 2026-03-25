@@ -4,6 +4,7 @@ import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { HttpClientContract } from '../contracts/http-client.contract';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 import { CircuitBreakerOptions } from '../resilience/circuit-breaker/circuit-breaker-options';
+import { CorrelationIdConfig, DEFAULT_CORRELATION_ID_HEADER } from '../models/correlation-id-config';
 
 /**
  * A fluent builder for constructing a fully configured `HttpAdapter` instance.
@@ -18,6 +19,7 @@ import { CircuitBreakerOptions } from '../resilience/circuit-breaker/circuit-bre
  *   .withInterceptor(new AuthInterceptor(), new LoggingInterceptor())
  *   .withRetryPolicy(RetryPolicies.exponential(3))
  *   .withCircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 30000 })
+ *   .withCorrelationId()
  *   .build();
  * ```
  */
@@ -26,6 +28,7 @@ export class HttpAdapterBuilder {
   private retryPolicy: RetryPolicy | undefined;
   private httpClient: HttpClientContract | undefined;
   private circuitBreaker: CircuitBreaker | undefined;
+  private correlationIdConfig: CorrelationIdConfig | undefined;
 
   /**
    * Registers one or more interceptors. Can be called multiple times — interceptors
@@ -75,6 +78,29 @@ export class HttpAdapterBuilder {
   }
 
   /**
+   * Enables correlation ID propagation for all requests made by this adapter.
+   *
+   * The correlation ID is always generated and tracked internally (for logging and
+   * error context). This method controls whether it is also forwarded as an outgoing
+   * request header to downstream services.
+   *
+   * Propagation is **disabled by default** — call this method to opt in.
+   *
+   * @param header - The header name to use. Defaults to `'x-correlation-id'`.
+   * @returns The current instance of HttpAdapterBuilder for method chaining.
+   *
+   * @example
+   * ```typescript
+   * builder.withCorrelationId()                 // use default 'x-correlation-id' header
+   * builder.withCorrelationId('x-request-id')   // use a custom header name
+   * ```
+   */
+  public withCorrelationId(header?: string): this {
+    this.correlationIdConfig = { enabled: true, header: header ?? DEFAULT_CORRELATION_ID_HEADER };
+    return this;
+  }
+
+  /**
    * Builds and returns a configured `HttpAdapter` instance.
    *
    * @returns A new `HttpAdapter` ready to send requests.
@@ -85,6 +111,7 @@ export class HttpAdapterBuilder {
       this.retryPolicy,
       this.httpClient,
       this.circuitBreaker,
+      this.correlationIdConfig,
     );
   }
 }

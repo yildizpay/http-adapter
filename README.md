@@ -62,6 +62,7 @@ const adapter = HttpAdapter.builder()
   .withInterceptor(new AuthInterceptor(), new LoggingInterceptor())
   .withRetryPolicy(RetryPolicies.exponential(3))
   .withCircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 })
+  .withCorrelationId()                // propagate x-correlation-id header (opt-in)
   .build();
 ```
 
@@ -415,6 +416,35 @@ export class GlobalErrorInterceptor implements HttpErrorInterceptor {
   }
 }
 ```
+
+## Correlation ID Propagation
+
+Every request automatically generates a `systemCorrelationId` used internally for logging and error context. You can also forward it as an outgoing header to downstream services.
+
+Propagation is **opt-in** — enable it on the adapter with `.withCorrelationId()`:
+
+```typescript
+const adapter = HttpAdapter.builder()
+  .withCorrelationId()                    // forwards as 'x-correlation-id' (default)
+  .withCorrelationId('x-request-id')      // use a custom header name
+  .build();
+```
+
+Per-request overrides take full precedence over the adapter-level config:
+
+```typescript
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/payments')
+  .withCorrelationId('x-trace-id')        // enable for this request with a custom header
+  .build();
+
+const request2 = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/internal')
+  .withoutCorrelationId()                 // disable for this request (adapter config ignored)
+  .build();
+```
+
+**Header resolution order:** per-request header → adapter header → `'x-correlation-id'`.
 
 ## Contributing
 

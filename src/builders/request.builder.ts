@@ -3,6 +3,7 @@ import { HttpBody } from '../common/types/http.types';
 import { Request } from '../models/request';
 import { RequestOptions } from '../models/request-options';
 import { ResponseValidator } from '../contracts/response-validator.contract';
+import { CorrelationIdConfig } from '../models/correlation-id-config';
 
 /**
  * A fluent builder for constructing HTTP requests.
@@ -23,6 +24,7 @@ export class RequestBuilder {
   private queryParams: Record<string, string> = {};
   private options: RequestOptions;
   private readonly validators: ResponseValidator[] = [];
+  private correlationIdConfig: CorrelationIdConfig | undefined;
 
   /**
    * Initializes a new instance of the RequestBuilder class.
@@ -299,6 +301,38 @@ export class RequestBuilder {
   }
 
   /**
+   * Enables correlation ID propagation for this request, optionally overriding the header name.
+   *
+   * When called without arguments, the adapter-level header name is used (or the default
+   * `x-correlation-id` if the adapter has no header configured).
+   * Takes precedence over the adapter-level configuration.
+   *
+   * @param header - Optional header name to use instead of the adapter-level default.
+   * @returns The current instance of RequestBuilder for method chaining.
+   *
+   * @example
+   * ```typescript
+   * builder.withCorrelationId()                 // enable, use adapter header
+   * builder.withCorrelationId('x-request-id')   // enable, custom header
+   * ```
+   */
+  public withCorrelationId(header?: string): this {
+    this.correlationIdConfig = { enabled: true, header };
+    return this;
+  }
+
+  /**
+   * Disables correlation ID propagation for this specific request,
+   * regardless of the adapter-level configuration.
+   *
+   * @returns The current instance of RequestBuilder for method chaining.
+   */
+  public withoutCorrelationId(): this {
+    this.correlationIdConfig = { enabled: false };
+    return this;
+  }
+
+  /**
    * Builds and returns a new Request object based on the current configuration.
    *
    * @returns A constructed Request object ready to be executed.
@@ -313,6 +347,7 @@ export class RequestBuilder {
       this.body ? { ...this.body } : undefined,
       this.options,
       this.validators,
+      this.correlationIdConfig,
     );
   }
 }

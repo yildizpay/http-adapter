@@ -62,6 +62,7 @@ const adapter = HttpAdapter.builder()
   .withInterceptor(new AuthInterceptor(), new LoggingInterceptor())
   .withRetryPolicy(RetryPolicies.exponential(3))
   .withCircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 })
+  .withCorrelationId()                // x-correlation-id header'ını ilet (opt-in)
   .build();
 ```
 
@@ -415,6 +416,35 @@ export class GlobalErrorInterceptor implements HttpErrorInterceptor {
   }
 }
 ```
+
+## Correlation ID Propagation
+
+Her request otomatik olarak bir `systemCorrelationId` üretir; bu ID loglama ve hata context'i için içsel olarak kullanılır. İstersen downstream servislere giden request header'larına da eklenebilir.
+
+Propagation **opt-in**'dir — adapter'da `.withCorrelationId()` çağrılarak etkinleştirilir:
+
+```typescript
+const adapter = HttpAdapter.builder()
+  .withCorrelationId()                    // 'x-correlation-id' olarak iletir (default)
+  .withCorrelationId('x-request-id')      // custom header adı kullanır
+  .build();
+```
+
+Per-request override, adapter config'inin önüne geçer:
+
+```typescript
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/payments')
+  .withCorrelationId('x-trace-id')        // bu request için custom header ile etkinleştir
+  .build();
+
+const request2 = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/internal')
+  .withoutCorrelationId()                 // bu request için devre dışı bırak
+  .build();
+```
+
+**Header resolution sırası:** per-request header → adapter header → `'x-correlation-id'`.
 
 ## Katkıda Bulunma
 

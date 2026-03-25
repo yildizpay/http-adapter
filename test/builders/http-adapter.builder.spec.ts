@@ -91,6 +91,23 @@ describe('HttpAdapterBuilder', () => {
     });
   });
 
+  describe('withCorrelationId', () => {
+    it('should enable propagation with default header', () => {
+      const adapter = new HttpAdapterBuilder().withCorrelationId().build();
+      expect(adapter).toBeInstanceOf(HttpAdapter);
+    });
+
+    it('should enable propagation with a custom header', () => {
+      const adapter = new HttpAdapterBuilder().withCorrelationId('x-request-id').build();
+      expect(adapter).toBeInstanceOf(HttpAdapter);
+    });
+
+    it('should return the builder instance for chaining', () => {
+      const builder = new HttpAdapterBuilder();
+      expect(builder.withCorrelationId()).toBe(builder);
+    });
+  });
+
   describe('full configuration', () => {
     it('should build a fully configured adapter', () => {
       const adapter = new HttpAdapterBuilder()
@@ -98,6 +115,7 @@ describe('HttpAdapterBuilder', () => {
         .withRetryPolicy(RetryPolicies.exponential(3))
         .withCircuitBreaker({ failureThreshold: 5 })
         .withHttpClient({ request: jest.fn() })
+        .withCorrelationId()
         .build();
       expect(adapter).toBeInstanceOf(HttpAdapter);
     });
