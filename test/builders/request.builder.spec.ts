@@ -211,4 +211,43 @@ describe('RequestBuilder', () => {
       expect(builder.validateWith(makeValidator())).toBe(builder);
     });
   });
+
+  describe('withCorrelationId', () => {
+    it('should set correlationIdConfig with enabled: true and no header', () => {
+      const request = builder.withCorrelationId().build();
+      expect(request.correlationIdConfig).toEqual({ enabled: true, header: undefined });
+    });
+
+    it('should set correlationIdConfig with custom header', () => {
+      const request = builder.withCorrelationId('x-request-id').build();
+      expect(request.correlationIdConfig).toEqual({ enabled: true, header: 'x-request-id' });
+    });
+
+    it('should return the builder instance for chaining', () => {
+      expect(builder.withCorrelationId()).toBe(builder);
+    });
+  });
+
+  describe('withoutCorrelationId', () => {
+    it('should set correlationIdConfig with enabled: false', () => {
+      const request = builder.withoutCorrelationId().build();
+      expect(request.correlationIdConfig).toEqual({ enabled: false });
+    });
+
+    it('should override a previous withCorrelationId call', () => {
+      const request = builder.withCorrelationId().withoutCorrelationId().build();
+      expect(request.correlationIdConfig?.enabled).toBe(false);
+    });
+
+    it('should return the builder instance for chaining', () => {
+      expect(builder.withoutCorrelationId()).toBe(builder);
+    });
+  });
+
+  describe('correlationIdConfig default', () => {
+    it('should be undefined when neither withCorrelationId nor withoutCorrelationId is called', () => {
+      const request = builder.build();
+      expect(request.correlationIdConfig).toBeUndefined();
+    });
+  });
 });

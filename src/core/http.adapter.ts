@@ -11,6 +11,10 @@ import { ErrorConverter } from './error.converter';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { ValidationException } from '../exceptions/validation.exception';
 import { HttpAdapterBuilder } from '../builders/http-adapter.builder';
+import {
+  CorrelationIdConfig,
+  DEFAULT_CORRELATION_ID_HEADER,
+} from '../models/correlation-id-config';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -29,12 +33,15 @@ export class HttpAdapter {
    * @param interceptors - Ordered list of interceptors to apply on every request/response/error.
    * @param httpClient - The underlying HTTP client used for network transport.
    * @param retryPolicy - Optional resiliency policy; if absent, no retries are attempted.
+   * @param circuitBreaker - Optional circuit breaker for fault isolation.
+   * @param correlationIdConfig - Optional global correlation ID propagation configuration.
    */
   private constructor(
     private readonly interceptors: HttpInterceptor[],
     private readonly httpClient: HttpClientContract,
     private readonly retryPolicy?: RetryPolicy,
     private readonly circuitBreaker?: CircuitBreaker,
+    private readonly correlationIdConfig?: CorrelationIdConfig,
   ) {}
 
   /**
@@ -43,6 +50,8 @@ export class HttpAdapter {
    * @param interceptors - A list of interceptors to register.
    * @param retryPolicy - An optional retry policy for resilience.
    * @param httpClient - An optional custom HTTP client (defaults to `defaultHttpClient`).
+   * @param circuitBreaker - An optional circuit breaker instance.
+   * @param correlationIdConfig - An optional global correlation ID propagation configuration.
    * @returns A new instance of `HttpAdapter`.
    */
   public static create(
@@ -50,12 +59,14 @@ export class HttpAdapter {
     retryPolicy?: RetryPolicy,
     httpClient?: HttpClientContract,
     circuitBreaker?: CircuitBreaker,
+    correlationIdConfig?: CorrelationIdConfig,
   ): HttpAdapter {
     return new HttpAdapter(
       interceptors,
       httpClient ?? defaultHttpClient,
       retryPolicy,
       circuitBreaker,
+      correlationIdConfig,
     );
   }
 
@@ -71,6 +82,7 @@ export class HttpAdapter {
    *   .withInterceptor(new AuthInterceptor())
    *   .withRetryPolicy(RetryPolicies.exponential(3))
    *   .withCircuitBreaker({ failureThreshold: 5 })
+   *   .withCorrelationId()
    *   .build();
    * ```
    */
@@ -139,6 +151,9 @@ export class HttpAdapter {
 
       processedRequest.setTimestamp(new Date());
 
+      /* Inject correlation ID header when propagation is enabled */
+      this.applyCorrelationIdHeader(processedRequest);
+
       /* Delegate to the underlying HTTP client */
       const clientResponse = await this.httpClient.request<T>({
         url: requestContext.url!,
@@ -195,5 +210,31 @@ export class HttpAdapter {
 
       throw propagatedError;
     }
+  }
+
+  /**
+   * Injects the correlation ID as an outgoing header when propagation is enabled.
+   *
+   * Resolution order:
+   * 1. Per-request override (`request.correlationIdConfig`) — takes precedence.
+   * 2. Adapter-level config (`this.correlationIdConfig`) — global default.
+   * 3. If neither enables propagation, no header is added.
+   *
+   * The header name resolves as: per-request header → adapter header → `x-correlation-id`.
+   *
+   * @private
+   */
+  private applyCorrelationIdHeader(request: Request): void {
+    /* Per-request config takes full precedence over the adapter-level config */
+    const effectiveConfig = request.correlationIdConfig ?? this.correlationIdConfig;
+
+    if (!effectiveConfig?.enabled) return;
+
+    const headerName =
+      request.correlationIdConfig?.header ??
+      this.correlationIdConfig?.header ??
+      DEFAULT_CORRELATION_ID_HEADER;
+
+    request.addHeader(headerName, request.systemCorrelationId);
   }
 }

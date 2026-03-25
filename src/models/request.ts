@@ -3,6 +3,7 @@ import { HttpMethod } from '../common/enums/http-method.enum';
 import { HttpBody } from '../common/types/http.types';
 import { RequestOptions } from './request-options';
 import { ResponseValidator } from '../contracts/response-validator.contract';
+import { CorrelationIdConfig } from './correlation-id-config';
 
 /**
  * Represents an immutable HTTP request.
@@ -42,6 +43,7 @@ export class Request {
     public readonly body: HttpBody | null = null,
     public readonly options: RequestOptions = new RequestOptions(),
     public readonly validators: ResponseValidator[] = [],
+    public readonly correlationIdConfig?: CorrelationIdConfig,
   ) {
     this.systemCorrelationId = StrUtil.generateUuid();
     this.timestamp = new Date();

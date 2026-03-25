@@ -479,4 +479,125 @@ describe('HttpAdapter', () => {
       expect(interceptor.onResponseValidated).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('correlation ID propagation', () => {
+    it('should not add correlation ID header by default', async () => {
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(request);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders).not.toHaveProperty('x-correlation-id');
+    });
+
+    it('should add default x-correlation-id header when adapter config is set', async () => {
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-correlation-id',
+      });
+      await adapter.send(request);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders['x-correlation-id']).toBe(request.systemCorrelationId);
+    });
+
+    it('should use custom header name from adapter config', async () => {
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-request-id',
+      });
+      await adapter.send(request);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders['x-request-id']).toBe(request.systemCorrelationId);
+      expect(sentHeaders).not.toHaveProperty('x-correlation-id');
+    });
+
+    it('should use per-request override to enable propagation when adapter config is absent', async () => {
+      const req = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .withCorrelationId()
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(req);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders['x-correlation-id']).toBe(req.systemCorrelationId);
+    });
+
+    it('should use per-request custom header, overriding the adapter header', async () => {
+      const req = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .withCorrelationId('x-trace-id')
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-correlation-id',
+      });
+      await adapter.send(req);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders['x-trace-id']).toBe(req.systemCorrelationId);
+      expect(sentHeaders).not.toHaveProperty('x-correlation-id');
+    });
+
+    it('should fall back to adapter header when per-request override has no header', async () => {
+      const req = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .withCorrelationId()
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-request-id',
+      });
+      await adapter.send(req);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders['x-request-id']).toBe(req.systemCorrelationId);
+    });
+
+    it('should disable propagation for a specific request when adapter config is set', async () => {
+      const req = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .withoutCorrelationId()
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-correlation-id',
+      });
+      await adapter.send(req);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders).not.toHaveProperty('x-correlation-id');
+    });
+
+    it('should not add header when per-request disables and adapter config is absent', async () => {
+      const req = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .withoutCorrelationId()
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(req);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders).not.toHaveProperty('x-correlation-id');
+    });
+
+    it('should fall back to x-correlation-id when per-request enables with no header and adapter has no config', async () => {
+      const req = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .withCorrelationId()
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(req);
+
+      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      expect(sentHeaders['x-correlation-id']).toBe(req.systemCorrelationId);
+    });
+  });
 });

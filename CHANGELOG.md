@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-03-26
+
+### Added
+
+- **Correlation ID Propagation**: The adapter now supports forwarding the internally-tracked `systemCorrelationId` as an outgoing request header to downstream services. Propagation is **opt-in** — disabled by default unless explicitly configured.
+- **`CorrelationIdConfig` Interface**: A unified configuration type used at both the adapter and request level. Fields: `enabled: boolean` and an optional `header` (falls back through the resolution chain to `'x-correlation-id'`).
+- **`HttpAdapterBuilder.withCorrelationId(header?)`**: Enables propagation globally for all requests on this adapter. Accepts an optional header name; defaults to `'x-correlation-id'`.
+- **`RequestBuilder.withCorrelationId(header?)`**: Overrides the adapter-level config for a specific request — enables propagation, optionally with a custom header name.
+- **`RequestBuilder.withoutCorrelationId()`**: Explicitly disables propagation for a specific request, regardless of the adapter-level configuration.
+- **Header Resolution Order**: Per-request header → adapter-level header → `'x-correlation-id'`. If the per-request config disables propagation, no header is added even when the adapter has propagation enabled.
+
 ## [3.3.0] - 2026-03-25
 
 ### Added
