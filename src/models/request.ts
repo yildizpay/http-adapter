@@ -1,4 +1,3 @@
-import { StrUtil } from '../common/utils/str.util';
 import { HttpMethod } from '../common/enums/http-method.enum';
 import { HttpBody } from '../common/types/http.types';
 import { RequestOptions } from './request-options';
@@ -45,7 +44,7 @@ export class Request {
     public readonly validators: ResponseValidator[] = [],
     public readonly correlationIdConfig?: CorrelationIdConfig,
   ) {
-    this.systemCorrelationId = StrUtil.generateUuid();
+    this.systemCorrelationId = crypto.randomUUID();
     this.timestamp = new Date();
   }
 
