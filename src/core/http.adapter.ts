@@ -10,6 +10,7 @@ import { HttpClientContract } from '../contracts/http-client.contract';
 import { ErrorConverter } from './error.converter';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { ValidationException } from '../exceptions/validation.exception';
+import { HttpAdapterBuilder } from '../builders/http-adapter.builder';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -56,6 +57,25 @@ export class HttpAdapter {
       retryPolicy,
       circuitBreaker,
     );
+  }
+
+  /**
+   * Returns a new `HttpAdapterBuilder` for fluent, chainable adapter configuration.
+   *
+   * Prefer this over `HttpAdapter.create()` when configuring multiple options,
+   * as it produces more readable and maintainable setup code.
+   *
+   * @example
+   * ```typescript
+   * const adapter = HttpAdapter.builder()
+   *   .withInterceptor(new AuthInterceptor())
+   *   .withRetryPolicy(RetryPolicies.exponential(3))
+   *   .withCircuitBreaker({ failureThreshold: 5 })
+   *   .build();
+   * ```
+   */
+  public static builder(): HttpAdapterBuilder {
+    return new HttpAdapterBuilder();
   }
 
   /**

@@ -53,23 +53,26 @@ const request = new RequestBuilder('https://api.example.com')
 
 ### 2. Adapter'ı Başlatma
 
-İsteğe bağlı interceptor'lar, retry policy ve circuit breaker ile `HttpAdapter` oluşturun.
+Fluent builder API ile `HttpAdapter` oluşturun.
 
 ```typescript
-import { HttpAdapter, RetryPolicies, CircuitBreaker } from '@yildizpay/http-adapter';
+import { HttpAdapter, RetryPolicies } from '@yildizpay/http-adapter';
 
-const circuitBreaker = new CircuitBreaker({
-  failureThreshold: 5,
-  resetTimeoutMs: 60000,
-});
+const adapter = HttpAdapter.builder()
+  .withInterceptor(new AuthInterceptor(), new LoggingInterceptor())
+  .withRetryPolicy(RetryPolicies.exponential(3))
+  .withCircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 })
+  .build();
+```
 
+Tek seferlik kurulum için `HttpAdapter.create()` de kullanılabilir.
+
+```typescript
 const adapter = HttpAdapter.create(
-  [
-    /* interceptors */
-  ],
-  RetryPolicies.exponential(3), // Exponential backoff ile 3 defaya kadar retry
+  [new AuthInterceptor()],
+  RetryPolicies.exponential(3),
   undefined,                    // Opsiyonel custom HTTP client
-  circuitBreaker,               // Opsiyonel Circuit Breaker
+  new CircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 }),
 );
 ```
 

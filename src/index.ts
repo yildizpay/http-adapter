@@ -4,6 +4,7 @@ export * from './core/default-http-client';
 
 // Builders
 export * from './builders/request.builder';
+export * from './builders/http-adapter.builder';
 
 // Models
 export * from './models/request';

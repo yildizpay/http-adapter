@@ -53,23 +53,26 @@ const request = new RequestBuilder('https://api.example.com')
 
 ### 2. Creating the Adapter
 
-Instantiate the `HttpAdapter` with optional interceptors and retry policies.
+Instantiate the `HttpAdapter` using the fluent builder API.
 
 ```typescript
 import { HttpAdapter, RetryPolicies, CircuitBreaker } from '@yildizpay/http-adapter';
 
-const circuitBreaker = new CircuitBreaker({
-  failureThreshold: 5,
-  resetTimeoutMs: 60000,
-});
+const adapter = HttpAdapter.builder()
+  .withInterceptor(new AuthInterceptor(), new LoggingInterceptor())
+  .withRetryPolicy(RetryPolicies.exponential(3))
+  .withCircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 })
+  .build();
+```
 
+You can also use `HttpAdapter.create()` directly if you prefer a single-call approach.
+
+```typescript
 const adapter = HttpAdapter.create(
-  [
-    /* interceptors */
-  ],
-  RetryPolicies.exponential(3), // Retry up to 3 times with exponential backoff
+  [new AuthInterceptor()],
+  RetryPolicies.exponential(3),
   undefined,                    // Optional custom HTTP client
-  circuitBreaker,               // Optional Circuit Breaker
+  new CircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 }),
 );
 ```
 
