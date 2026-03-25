@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-03-26
+
+### Added
+
+- **`TokenProvider` Type**: A shared contract (`string | (() => string | Promise<string>)`) used across auth interceptors. Supports static tokens, synchronous factories, and async factories (e.g. secret stores, token caches).
+- **`BearerAuthInterceptor`**: Attaches a `Bearer` token to the `Authorization` header on every request. Instantiated via `BearerAuthInterceptor.of(provider)`.
+- **`BasicAuthInterceptor`**: Encodes `username:password` as Base64 and attaches it to the `Authorization` header per RFC 7617. Instantiated via `BasicAuthInterceptor.of(username, password)`.
+- **`ApiKeyInterceptor`**: Attaches an API key either as a request header or as a query parameter, controlled by the `placement` option. Instantiated via `ApiKeyInterceptor.of(provider, { header: '...' })` or `ApiKeyInterceptor.of(provider, { queryParam: '...' })`.
+
 ## [3.4.1] - 2026-03-26
 
 ### Fixed
