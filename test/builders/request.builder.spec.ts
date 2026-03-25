@@ -1,5 +1,6 @@
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import { ResponseValidator } from '../../src/contracts/response-validator.contract';
 
 describe('RequestBuilder', () => {
   let builder: RequestBuilder;
@@ -172,6 +173,42 @@ describe('RequestBuilder', () => {
       // To get coverage, I just need to call them.
       builder.setTimeout(5000);
       builder.setOptions({ timeout: 2000 });
+    });
+  });
+
+  describe('validateWith', () => {
+    const makeValidator = (): ResponseValidator => ({ validate: jest.fn() });
+
+    it('should register a single validator', () => {
+      const validator = makeValidator();
+      const request = builder.validateWith(validator).build();
+      expect(request.validators).toHaveLength(1);
+      expect(request.validators[0]).toBe(validator);
+    });
+
+    it('should register multiple validators passed as rest params', () => {
+      const v1 = makeValidator();
+      const v2 = makeValidator();
+      const request = builder.validateWith(v1, v2).build();
+      expect(request.validators).toHaveLength(2);
+      expect(request.validators[0]).toBe(v1);
+      expect(request.validators[1]).toBe(v2);
+    });
+
+    it('should accumulate validators across multiple calls', () => {
+      const v1 = makeValidator();
+      const v2 = makeValidator();
+      const request = builder.validateWith(v1).validateWith(v2).build();
+      expect(request.validators).toHaveLength(2);
+    });
+
+    it('should default to empty validators array when not called', () => {
+      const request = builder.build();
+      expect(request.validators).toEqual([]);
+    });
+
+    it('should return the builder instance for chaining', () => {
+      expect(builder.validateWith(makeValidator())).toBe(builder);
     });
   });
 });

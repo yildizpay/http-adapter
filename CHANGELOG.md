@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-03-25
+
+### Added
+
+- **`ResponseValidator` Interface**: A pluggable contract for validating HTTP responses before they are returned to the caller. Implement `validate(response: Response<T>): Promise<void> | void` to enforce schema constraints or business rules. Both sync and async validators are supported.
+- **`ValidationException<TCause>`**: A new generic exception class thrown when a validator rejects a response. The optional `TCause` parameter narrows the type of `cause` (e.g. `ValidationException<ZodError>`) for typed access without casting; defaults to `unknown`. Carries the original `Response` object for inspection, exposes `toJSON()` for structured logging, and is not retryable.
+- **`isValidationException` Type Guard**: Consistent with the existing guard pattern, enables safe narrowing without `instanceof`.
+- **`RequestBuilder.validateWith(...validators)`**: Registers one or more validators on a request via rest parameters. Validators accumulate across multiple calls and are stored on the `Request` model.
+- **`HttpValidatedResponseInterceptor`**: A new interceptor interface with an `onResponseValidated` hook that fires only after all registered validators pass. Complements the existing `onResponse` hook which always fires regardless of validation outcome.
+- **Interceptor Lifecycle for Validation**: The full request lifecycle is now `onRequest → HTTP call → onResponse → validators → onResponseValidated → caller`. If a validator throws, `onResponseValidated` is skipped and `onError` is triggered instead — while `onResponse` always runs.
+- **Automatic Error Wrapping in Validators**: Non-`BaseAdapterException` errors thrown by validators (e.g. `ZodError`, `TypeError`) are automatically wrapped in `ValidationException` with the original error as `cause`. `BaseAdapterException` subclasses are re-thrown as-is.
+
 ## [3.1.0] - 2026-03-24
 
 ### Added

@@ -7,6 +7,7 @@ import { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { defaultHttpClient } from '../../src/core/default-http-client';
 import { HttpClientContract } from '../../src/contracts/http-client.contract';
+import { ValidationException } from '../../src/exceptions/validation.exception';
 
 jest.mock('../../src/core/default-http-client', () => ({
   defaultHttpClient: {
@@ -276,6 +277,206 @@ describe('HttpAdapter', () => {
       const response = await adapter.send(request);
 
       expect(response.headers).toBeNull();
+    });
+
+    it('should run onResponse before validators', async () => {
+      const order: string[] = [];
+      const interceptor = {
+        onResponse: jest.fn().mockImplementation(async (r: Response) => {
+          order.push('onResponse');
+          return r;
+        }),
+      };
+      const validator = { validate: jest.fn().mockImplementation(() => order.push('validator')) };
+
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      await adapter.send(requestWithValidator);
+
+      expect(order).toEqual(['onResponse', 'validator']);
+    });
+
+    it('should run a single validator after onResponse', async () => {
+      const validator = { validate: jest.fn() };
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(requestWithValidator);
+
+      expect(validator.validate).toHaveBeenCalledTimes(1);
+      expect(validator.validate).toHaveBeenCalledWith(expect.any(Response));
+    });
+
+    it('should run multiple validators in registration order', async () => {
+      const order: number[] = [];
+      const v1 = { validate: jest.fn().mockImplementation(() => order.push(1)) };
+      const v2 = { validate: jest.fn().mockImplementation(() => order.push(2)) };
+
+      const requestWithValidators = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(v1, v2)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(requestWithValidators);
+
+      expect(order).toEqual([1, 2]);
+    });
+
+    it('should halt validation chain and throw when a validator fails', async () => {
+      const v1 = {
+        validate: jest
+          .fn()
+          .mockRejectedValue(
+            new ValidationException('Invalid status', Response.create({}, 200, null)),
+          ),
+      };
+      const v2 = { validate: jest.fn() };
+
+      const requestWithValidators = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(v1, v2)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await expect(adapter.send(requestWithValidators)).rejects.toBeInstanceOf(ValidationException);
+      expect(v2.validate).not.toHaveBeenCalled();
+    });
+
+    it('should not call validators when request fails with an HTTP error', async () => {
+      mockHttpClient.request.mockRejectedValueOnce({ response: { status: 500, data: {} } });
+
+      const validator = { validate: jest.fn() };
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await expect(adapter.send(requestWithValidator)).rejects.toBeDefined();
+      expect(validator.validate).not.toHaveBeenCalled();
+    });
+
+    it('should support async validators', async () => {
+      const asyncValidator = { validate: jest.fn().mockResolvedValue(undefined) };
+
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(asyncValidator)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      await adapter.send(requestWithValidator);
+
+      expect(asyncValidator.validate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call onResponseValidated after all validators pass', async () => {
+      const order: string[] = [];
+      const validator = { validate: jest.fn().mockImplementation(() => order.push('validator')) };
+      const interceptor = {
+        onResponseValidated: jest.fn().mockImplementation(async (r: Response) => {
+          order.push('onResponseValidated');
+          return r;
+        }),
+      };
+
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      await adapter.send(requestWithValidator);
+
+      expect(order).toEqual(['validator', 'onResponseValidated']);
+    });
+
+    it('should not call onResponseValidated when a validator fails', async () => {
+      const interceptor = { onResponseValidated: jest.fn() };
+      const validator = {
+        validate: jest
+          .fn()
+          .mockRejectedValue(new ValidationException('fail', Response.create({}, 200, null))),
+      };
+
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      await expect(adapter.send(requestWithValidator)).rejects.toBeInstanceOf(ValidationException);
+      expect(interceptor.onResponseValidated).not.toHaveBeenCalled();
+    });
+
+    it('should call onResponse even when validation fails', async () => {
+      const interceptor = {
+        onResponse: jest.fn().mockImplementation(async (r: Response) => r),
+      };
+      const validator = {
+        validate: jest
+          .fn()
+          .mockRejectedValue(new ValidationException('fail', Response.create({}, 200, null))),
+      };
+
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      await expect(adapter.send(requestWithValidator)).rejects.toBeInstanceOf(ValidationException);
+      expect(interceptor.onResponse).toHaveBeenCalledTimes(1);
+    });
+
+    it('should wrap non-BaseAdapterException validator errors in ValidationException', async () => {
+      const zodError = new Error('Schema mismatch');
+      const validator = { validate: jest.fn().mockRejectedValue(zodError) };
+
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      const err = await adapter.send(requestWithValidator).catch((e) => e);
+
+      expect(err).toBeInstanceOf(ValidationException);
+      expect(err.cause).toBe(zodError);
+    });
+
+    it('should not re-wrap BaseAdapterException thrown by a validator', async () => {
+      const validationErr = new ValidationException('explicit', Response.create({}, 200, null));
+      const validator = { validate: jest.fn().mockRejectedValue(validationErr) };
+
+      const requestWithValidator = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith(validator)
+        .build();
+
+      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      const err = await adapter.send(requestWithValidator).catch((e) => e);
+
+      expect(err).toBe(validationErr);
+    });
+
+    it('should call onResponseValidated when no validators are registered', async () => {
+      const interceptor = {
+        onResponseValidated: jest.fn().mockImplementation(async (r: Response) => r),
+      };
+
+      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      await adapter.send(request);
+
+      expect(interceptor.onResponseValidated).toHaveBeenCalledTimes(1);
     });
   });
 });

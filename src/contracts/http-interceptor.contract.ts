@@ -33,12 +33,26 @@ export interface HttpResponseInterceptor {
   onResponse(response: Response): Promise<Response>;
 }
 
+export interface HttpValidatedResponseInterceptor {
+  /**
+   * Intercepts an HTTP response after all registered validators have passed.
+   *
+   * Use this method for operations that require a business-valid response, such as
+   * caching, data transformation, or triggering downstream side effects.
+   * This hook is NOT called if any validator throws a `ValidationException`.
+   *
+   * @param response - The validated response object.
+   * @returns A promise that resolves to the modified (or original) response object.
+   */
+  onResponseValidated(response: Response): Promise<Response>;
+}
+
 export interface HttpErrorInterceptor {
   /**
    * Intercepts errors that occur during the HTTP request lifecycle.
    *
-   * Use this method to handle network errors, timeouts, or non-success HTTP status codes
-   * centrally. You can also re-throw a custom error or return a fallback value.
+   * Triggered by network failures, HTTP error status codes, and `ValidationException`s.
+   * Use this method to handle errors centrally, re-throw a custom error, or return a fallback.
    *
    * @param error - The error that occurred.
    * @param request - The request during which the error occurred.
@@ -49,4 +63,5 @@ export interface HttpErrorInterceptor {
 
 export type HttpInterceptor = Partial<HttpRequestInterceptor> &
   Partial<HttpResponseInterceptor> &
+  Partial<HttpValidatedResponseInterceptor> &
   Partial<HttpErrorInterceptor>;

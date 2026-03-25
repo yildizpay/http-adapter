@@ -12,6 +12,7 @@ Node.js tabanlı kurumsal uygulamalar için tasarlanmış profesyonel ve yüksek
 
 - **Fluent Request Builder:** Sezgisel ve zincirlenebilir bir API ile karmaşık HTTP isteklerini kolayca oluşturun.
 - **Structured Exception Hierarchy:** Her HTTP durum kodu ve ağ hatası, zengin metadata, `isRetryable()` sinyali ve `toJSON()` desteğiyle ayrı bir exception sınıfına dönüştürülür.
+- **Response Validation:** Herhangi bir request'e bir veya daha fazla `ResponseValidator` ekleyerek schema kısıtlamalarını veya business rule'ları response kodunuza ulaşmadan otomatik olarak denetleyebilirsiniz.
 - **Interceptor Mimarisi:** Loglama, kimlik doğrulama, hata yönetimi ve veri dönüşümü gibi middleware işlemlerini zahmetsizce entegre edin.
 - **Resilience & Reliability:** S2S entegrasyonlarında geçici hataları zarif bir şekilde yönetmek için Exponential Backoff gibi retry policy'ler ve built-in **Circuit Breaker** içerir.
 - **Type Safety:** Generic'ler kullanılarak tam olarak tiplendirilmiş request ve response'lar ile uygulama genelinde tip güvenliği sağlanır.
@@ -230,6 +231,72 @@ Her exception, kaynak request'ten alınan `RequestContext` objesini (`method`, `
   }
 }
 ```
+
+### Response Validator'lar
+
+Request'e validator ekleyerek schema kısıtlamalarını veya business rule'ları response kodunuza ulaşmadan otomatik olarak denetleyebilirsiniz. Validator'lar HTTP çağrısı başarılı olduktan sonra, response-side interceptor'lardan önce sırayla çalışır. İlk hata veren validator chain'i durdurur.
+
+```typescript
+import { ResponseValidator, ValidationException, Response } from '@yildizpay/http-adapter';
+
+class PaymentStatusValidator implements ResponseValidator<IyzicoResponse> {
+  validate(response: Response<IyzicoResponse>): void {
+    if (response.data.status !== 'success') {
+      throw new ValidationException(
+        `Payment failed: ${response.data.errorMessage}`,
+        response,
+      );
+    }
+  }
+}
+
+// Zod, Joi gibi herhangi bir validation kütüphanesiyle çalışır
+class PaymentSchemaValidator implements ResponseValidator<unknown> {
+  validate(response: Response<unknown>): void {
+    IyzicoResponseSchema.parse(response.data); // Zod uyuşmazlıkta exception fırlatır
+  }
+}
+
+const request = new RequestBuilder('https://api.iyzipay.com')
+  .setEndpoint('/payment/auth')
+  .setMethod(HttpMethod.POST)
+  .setBody(dto)
+  .validateWith(new PaymentSchemaValidator(), new PaymentStatusValidator())
+  .build();
+```
+
+Validation hatasını yakalamak:
+
+```typescript
+import { isValidationException } from '@yildizpay/http-adapter';
+
+} catch (error) {
+  if (isValidationException(error)) {
+    console.error('Validation başarısız:', error.message);
+    console.error('Ham response:', error.response.data);
+  }
+}
+```
+
+Validator içinde fırlatılan `BaseAdapterException` olmayan hatalar (örn. `ZodError`) otomatik olarak `ValidationException`'a sarılır; orijinal hata `cause`'ta tutulur. Typed erişim için generic parametre kullanılabilir:
+
+```typescript
+} catch (error) {
+  if (isValidationException<ZodError>(error) && error.cause) {
+    console.error('Schema hataları:', error.cause.issues);
+  }
+}
+```
+
+Validator kayıtlıyken tam interceptor lifecycle'ı:
+
+```
+onRequest → HTTP call → onResponse → validators → onResponseValidated → caller
+                                          ↓ (hata durumunda)
+                                       onError
+```
+
+`onResponse` her zaman çalışır. `onResponseValidated` yalnızca tüm validator'lar geçtiğinde çalışır — business açısından geçerli bir response gerektiren cache veya side effect işlemleri için idealdir.
 
 ### Error Interceptor
 

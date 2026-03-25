@@ -2,6 +2,7 @@ import { HttpMethod } from '../common/enums/http-method.enum';
 import { HttpBody } from '../common/types/http.types';
 import { Request } from '../models/request';
 import { RequestOptions } from '../models/request-options';
+import { ResponseValidator } from '../contracts/response-validator.contract';
 
 /**
  * A fluent builder for constructing HTTP requests.
@@ -21,6 +22,7 @@ export class RequestBuilder {
   private body: HttpBody = {};
   private queryParams: Record<string, string> = {};
   private options: RequestOptions;
+  private readonly validators: ResponseValidator[] = [];
 
   /**
    * Initializes a new instance of the RequestBuilder class.
@@ -278,6 +280,25 @@ export class RequestBuilder {
   }
 
   /**
+   * Registers one or more response validators for this request.
+   *
+   * Validators are executed sequentially by the `HttpAdapter` after a successful
+   * response is received. The first validator that throws halts the chain.
+   *
+   * @param validators - One or more `ResponseValidator` instances to register.
+   * @returns The current instance of RequestBuilder for method chaining.
+   *
+   * @example
+   * ```typescript
+   * builder.validateWith(new SchemaValidator(), new BusinessRuleValidator())
+   * ```
+   */
+  public validateWith(...validators: ResponseValidator[]): this {
+    this.validators.push(...validators);
+    return this;
+  }
+
+  /**
    * Builds and returns a new Request object based on the current configuration.
    *
    * @returns A constructed Request object ready to be executed.
@@ -291,6 +312,7 @@ export class RequestBuilder {
       this.queryParams,
       this.body ? { ...this.body } : undefined,
       this.options,
+      this.validators,
     );
   }
 }

@@ -14,6 +14,7 @@ export * from './models/request-context';
 // Contracts
 export * from './contracts/http-interceptor.contract';
 export * from './contracts/retry-policy.contract';
+export * from './contracts/response-validator.contract';
 
 // Resilience
 export * from './resilience/retry.policies';
@@ -33,5 +34,6 @@ export * from './exceptions/http-exception.factory';
 export * from './exceptions/network.exceptions';
 export * from './exceptions/network-exception.factory';
 export * from './exceptions/unknown.exception';
+export * from './exceptions/validation.exception';
 export * from './exceptions/exception.guards';
 export * from './core/error.converter';

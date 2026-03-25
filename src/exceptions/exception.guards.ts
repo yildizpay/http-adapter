@@ -10,6 +10,7 @@ import {
   HostUnreachableException,
 } from './network.exceptions';
 import { UnknownException } from './unknown.exception';
+import { ValidationException } from './validation.exception';
 
 export function isBaseAdapterException(error: unknown): error is BaseAdapterException {
   return error instanceof BaseAdapterException;
@@ -51,4 +52,10 @@ export function isCircuitBreakerOpenException(
   error: unknown,
 ): error is CircuitBreakerOpenException {
   return error instanceof CircuitBreakerOpenException;
+}
+
+export function isValidationException<TCause = unknown>(
+  error: unknown,
+): error is ValidationException<TCause> {
+  return error instanceof ValidationException;
 }
