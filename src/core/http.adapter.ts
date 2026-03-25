@@ -11,7 +11,10 @@ import { ErrorConverter } from './error.converter';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { ValidationException } from '../exceptions/validation.exception';
 import { HttpAdapterBuilder } from '../builders/http-adapter.builder';
-import { CorrelationIdConfig, DEFAULT_CORRELATION_ID_HEADER } from '../models/correlation-id-config';
+import {
+  CorrelationIdConfig,
+  DEFAULT_CORRELATION_ID_HEADER,
+} from '../models/correlation-id-config';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -228,7 +231,9 @@ export class HttpAdapter {
     if (!effectiveConfig?.enabled) return;
 
     const headerName =
-      request.correlationIdConfig?.header ?? this.correlationIdConfig?.header ?? DEFAULT_CORRELATION_ID_HEADER;
+      request.correlationIdConfig?.header ??
+      this.correlationIdConfig?.header ??
+      DEFAULT_CORRELATION_ID_HEADER;
 
     request.addHeader(headerName, request.systemCorrelationId);
   }

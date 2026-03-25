@@ -490,7 +490,10 @@ describe('HttpAdapter', () => {
     });
 
     it('should add default x-correlation-id header when adapter config is set', async () => {
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, { enabled: true, header: 'x-correlation-id' });
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-correlation-id',
+      });
       await adapter.send(request);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
@@ -498,7 +501,10 @@ describe('HttpAdapter', () => {
     });
 
     it('should use custom header name from adapter config', async () => {
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, { enabled: true, header: 'x-request-id' });
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-request-id',
+      });
       await adapter.send(request);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
@@ -525,7 +531,10 @@ describe('HttpAdapter', () => {
         .withCorrelationId('x-trace-id')
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, { enabled: true, header: 'x-correlation-id' });
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-correlation-id',
+      });
       await adapter.send(req);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
@@ -539,7 +548,10 @@ describe('HttpAdapter', () => {
         .withCorrelationId()
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, { enabled: true, header: 'x-request-id' });
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-request-id',
+      });
       await adapter.send(req);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
@@ -552,7 +564,10 @@ describe('HttpAdapter', () => {
         .withoutCorrelationId()
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, { enabled: true, header: 'x-correlation-id' });
+      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
+        enabled: true,
+        header: 'x-correlation-id',
+      });
       await adapter.send(req);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;

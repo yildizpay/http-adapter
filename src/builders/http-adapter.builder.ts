@@ -4,7 +4,10 @@ import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { HttpClientContract } from '../contracts/http-client.contract';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 import { CircuitBreakerOptions } from '../resilience/circuit-breaker/circuit-breaker-options';
-import { CorrelationIdConfig, DEFAULT_CORRELATION_ID_HEADER } from '../models/correlation-id-config';
+import {
+  CorrelationIdConfig,
+  DEFAULT_CORRELATION_ID_HEADER,
+} from '../models/correlation-id-config';
 
 /**
  * A fluent builder for constructing a fully configured `HttpAdapter` instance.
