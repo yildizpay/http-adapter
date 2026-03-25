@@ -1,4 +1,13 @@
 import { ExponentialBackoffPolicy } from '../../../src/resilience/policies/exponential-backoff.retry-policy';
+import { HttpExceptionFactory } from '../../../src/exceptions/http-exception.factory';
+import {
+  TimeoutException,
+  ConnectionRefusedException,
+  SocketResetException,
+  DnsResolutionException,
+  HostUnreachableException,
+} from '../../../src/exceptions/network.exceptions';
+import { UnknownException } from '../../../src/exceptions/unknown.exception';
 
 describe('ExponentialBackoffPolicy', () => {
   let policy: ExponentialBackoffPolicy;
@@ -8,58 +17,77 @@ describe('ExponentialBackoffPolicy', () => {
   });
 
   describe('retryOn', () => {
-    const retryableErrors = [
-      { response: { status: 429 } },
-      { response: { status: 500 } },
-      { response: { status: 502 } },
-      { response: { status: 503 } },
-      { response: { status: 504 } },
-      { code: 'ECONNABORTED' },
-    ];
+    const retryableStatuses = [429, 502, 503, 504];
+    const nonRetryableStatuses = [400, 401, 403, 404, 422, 500];
 
-    const nonRetryableErrors = [
-      { response: { status: 400 } },
-      { response: { status: 401 } },
-      { response: { status: 403 } },
-      { response: { status: 404 } },
-      { code: 'OTHER_ERROR' },
-      new Error('Generic error'),
-      null,
-      'string error',
-      123,
-    ];
-
-    retryableErrors.forEach((error) => {
-      it(`should return true for error: ${JSON.stringify(error)}`, () => {
-        expect(policy.retryOn(error)).toBe(true);
+    retryableStatuses.forEach((status) => {
+      it(`should return true for HTTP ${status}`, () => {
+        expect(policy.retryOn(HttpExceptionFactory.createFromResponse(status))).toBe(true);
       });
     });
 
-    nonRetryableErrors.forEach((error) => {
-      it(`should return false for error: ${JSON.stringify(error)}`, () => {
-        expect(policy.retryOn(error)).toBe(false);
+    nonRetryableStatuses.forEach((status) => {
+      it(`should return false for HTTP ${status}`, () => {
+        expect(policy.retryOn(HttpExceptionFactory.createFromResponse(status))).toBe(false);
       });
+    });
+
+    it('should return true for TimeoutException', () => {
+      expect(policy.retryOn(new TimeoutException())).toBe(true);
+    });
+
+    it('should return true for ConnectionRefusedException', () => {
+      expect(policy.retryOn(new ConnectionRefusedException())).toBe(true);
+    });
+
+    it('should return true for SocketResetException', () => {
+      expect(policy.retryOn(new SocketResetException())).toBe(true);
+    });
+
+    it('should return false for DnsResolutionException', () => {
+      expect(policy.retryOn(new DnsResolutionException())).toBe(false);
+    });
+
+    it('should return false for HostUnreachableException', () => {
+      expect(policy.retryOn(new HostUnreachableException())).toBe(false);
+    });
+
+    it('should return false for UnknownException', () => {
+      expect(policy.retryOn(new UnknownException())).toBe(false);
+    });
+
+    it('should return false for plain Error', () => {
+      expect(policy.retryOn(new Error('generic'))).toBe(false);
+    });
+
+    it('should return false for null', () => {
+      expect(policy.retryOn(null)).toBe(false);
+    });
+
+    it('should return false for string', () => {
+      expect(policy.retryOn('string error')).toBe(false);
+    });
+
+    it('should return false for raw status object (not a BaseAdapterException)', () => {
+      expect(policy.retryOn({ response: { status: 503 } })).toBe(false);
     });
   });
 
   describe('backoffMs', () => {
     it('should calculate delay within expected range for attempt 1', () => {
       const delay = policy.backoffMs(1);
-      // (2^1 * 100) = 200 + [0-50] jitter
       expect(delay).toBeGreaterThanOrEqual(200);
       expect(delay).toBeLessThanOrEqual(250);
     });
 
     it('should calculate delay within expected range for attempt 2', () => {
       const delay = policy.backoffMs(2);
-      // (2^2 * 100) = 400 + [0-50] jitter
       expect(delay).toBeGreaterThanOrEqual(400);
       expect(delay).toBeLessThanOrEqual(450);
     });
 
     it('should calculate delay within expected range for attempt 3', () => {
       const delay = policy.backoffMs(3);
-      // (2^3 * 100) = 800 + [0-50] jitter
       expect(delay).toBeGreaterThanOrEqual(800);
       expect(delay).toBeLessThanOrEqual(850);
     });

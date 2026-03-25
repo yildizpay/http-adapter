@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-03-26
+
+### Fixed
+
+- **`ExponentialBackoffPolicy.retryOn()`**: Replaced manual status code and error code inspection with a delegation to `BaseAdapterException.isRetryable()`. The retry decision is now fully consistent with the retryability contract defined on each exception class. As a side effect, HTTP 500 (`InternalServerErrorException`) is no longer treated as retryable — 500 does not override `isRetryable()` because it is not reliably transient.
+
 ## [3.4.0] - 2026-03-26
 
 ### Added
