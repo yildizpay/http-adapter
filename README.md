@@ -12,6 +12,7 @@ A professional, robust, and highly configurable HTTP client adapter designed for
 
 - **Fluent Request Builder:** Construct complex HTTP requests with an intuitive, chainable API.
 - **Structured Exception Hierarchy:** Every HTTP status code and network failure maps to a dedicated, named exception class with rich metadata, `isRetryable()` signals, and structured `toJSON()` serialization.
+- **Response Validation:** Attach one or more `ResponseValidator` implementations to any request to enforce schema constraints or business rules automatically before the response reaches your code.
 - **Interceptor Architecture:** Easily implement middleware for logging, authentication, error handling, and data transformation.
 - **Resilience & Reliability:** Built-in support for retry policies (Exponential Backoff, etc.) and a generic **Circuit Breaker** to handle transient failures gracefully and prevent cascading failures in S2S communication.
 - **Type Safety:** Fully typed requests and responses using generics, ensuring type safety across your application.
@@ -230,6 +231,72 @@ Every exception automatically carries a `RequestContext` object (`method`, `url`
   }
 }
 ```
+
+### Response Validators
+
+Attach validators to a request to automatically enforce schema constraints or business rules on the response before it reaches your code. Validators run sequentially after the HTTP call succeeds and before response-side interceptors. The first validator that throws halts the chain.
+
+```typescript
+import { ResponseValidator, ValidationException, Response } from '@yildizpay/http-adapter';
+
+class PaymentStatusValidator implements ResponseValidator<IyzicoResponse> {
+  validate(response: Response<IyzicoResponse>): void {
+    if (response.data.status !== 'success') {
+      throw new ValidationException(
+        `Payment failed: ${response.data.errorMessage}`,
+        response,
+      );
+    }
+  }
+}
+
+// Works with any schema validation library — zero coupling to Zod, Joi, etc.
+class PaymentSchemaValidator implements ResponseValidator<unknown> {
+  validate(response: Response<unknown>): void {
+    IyzicoResponseSchema.parse(response.data); // Zod throws on mismatch
+  }
+}
+
+const request = new RequestBuilder('https://api.iyzipay.com')
+  .setEndpoint('/payment/auth')
+  .setMethod(HttpMethod.POST)
+  .setBody(dto)
+  .validateWith(new PaymentSchemaValidator(), new PaymentStatusValidator())
+  .build();
+```
+
+Catching a validation failure:
+
+```typescript
+import { isValidationException } from '@yildizpay/http-adapter';
+
+} catch (error) {
+  if (isValidationException(error)) {
+    console.error('Validation failed:', error.message);
+    console.error('Raw response:', error.response.data);
+  }
+}
+```
+
+Non-`BaseAdapterException` errors thrown inside a validator (e.g. `ZodError`) are automatically wrapped in `ValidationException` with the original error available as `cause`. Use the generic parameter for typed access:
+
+```typescript
+} catch (error) {
+  if (isValidationException<ZodError>(error) && error.cause) {
+    console.error('Schema issues:', error.cause.issues);
+  }
+}
+```
+
+The full interceptor lifecycle when validators are registered:
+
+```
+onRequest → HTTP call → onResponse → validators → onResponseValidated → caller
+                                          ↓ (on failure)
+                                       onError
+```
+
+`onResponse` always fires. `onResponseValidated` only fires when all validators pass — ideal for caching or downstream side effects that require a business-valid response.
 
 ### Error Interceptor
 

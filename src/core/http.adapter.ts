@@ -8,6 +8,8 @@ import { RetryExecutor } from '../resilience/retry-executor';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 import { HttpClientContract } from '../contracts/http-client.contract';
 import { ErrorConverter } from './error.converter';
+import { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import { ValidationException } from '../exceptions/validation.exception';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -134,10 +136,29 @@ export class HttpAdapter {
         requestContext,
       );
 
-      /* Apply response-side interceptors in registration order */
+      /* Apply response-side interceptors — runs regardless of validation outcome */
       for (const interceptor of this.interceptors) {
         if (interceptor.onResponse) {
           response = (await interceptor.onResponse(response)) as Response<T>;
+        }
+      }
+
+      /* Run response validators sequentially — first failure halts the chain.
+         Non-BaseAdapterException errors (e.g. ZodError) are wrapped in ValidationException
+         so callers always receive a typed, inspectable exception. */
+      for (const validator of request.validators) {
+        try {
+          await validator.validate(response);
+        } catch (err) {
+          if (err instanceof BaseAdapterException) throw err;
+          throw new ValidationException('Response validation failed', response, err);
+        }
+      }
+
+      /* Apply post-validation interceptors — only reached when all validators pass */
+      for (const interceptor of this.interceptors) {
+        if (interceptor.onResponseValidated) {
+          response = (await interceptor.onResponseValidated(response)) as Response<T>;
         }
       }
 

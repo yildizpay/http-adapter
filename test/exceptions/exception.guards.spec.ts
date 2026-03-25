@@ -9,8 +9,11 @@ import {
   isHostUnreachableException,
   isUnknownException,
   isCircuitBreakerOpenException,
+  isValidationException,
 } from '../../src/exceptions/exception.guards';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import { ValidationException } from '../../src/exceptions/validation.exception';
+import { Response } from '../../src/models/response';
 import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
 import {
   BadRequestException,
@@ -25,7 +28,6 @@ import {
   HostUnreachableException,
 } from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
-import { Response } from '../../src/models/response';
 
 const mockResponse = (status: number) => Response.create(null, status, null);
 
@@ -139,6 +141,18 @@ describe('Exception Type Guards', () => {
     it('returns false for other exceptions', () => {
       expect(isCircuitBreakerOpenException(new UnknownException())).toBe(false);
       expect(isCircuitBreakerOpenException(new Error('plain'))).toBe(false);
+    });
+  });
+
+  describe('isValidationException', () => {
+    it('returns true for ValidationException', () => {
+      const exception = new ValidationException('invalid', Response.create({}, 200, null));
+      expect(isValidationException(exception)).toBe(true);
+    });
+
+    it('returns false for other exceptions', () => {
+      expect(isValidationException(new UnknownException())).toBe(false);
+      expect(isValidationException(new Error('plain'))).toBe(false);
     });
   });
 
