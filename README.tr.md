@@ -1,10 +1,15 @@
-# @yildizpay/http-adapter
-
-[🇬🇧 English](README.md) | 🇹🇷 **Türkçe**
-
-![Build Status](https://github.com/yildizpay/http-adapter/actions/workflows/ci.yml/badge.svg)
-![NPM Version](https://img.shields.io/npm/v/@yildizpay/http-adapter)
-![License](https://img.shields.io/npm/l/@yildizpay/http-adapter)
+<p align="center">
+  <img src="assets/logo.png" width="20%" alt="@yildizpay/http-adapter" />
+  <h1 align="center">@yildizpay/http-adapter</h1>
+  <p align="center">
+    <a href="README.md">🇬🇧 English</a> | <b>🇹🇷 Türkçe</b>
+  </p>
+  <p align="center">
+    <img src="https://github.com/yildizpay/http-adapter/actions/workflows/ci.yml/badge.svg" alt="Build Status" />
+    <img src="https://img.shields.io/npm/v/@yildizpay/http-adapter" alt="NPM Version" />
+    <img src="https://img.shields.io/npm/l/@yildizpay/http-adapter" alt="License" />
+  </p>
+</p>
 
 Node.js tabanlı kurumsal uygulamalar için tasarlanmış profesyonel ve yüksek oranda yapılandırılabilir bir HTTP client adaptörü. Fluent API, built-in resilience pattern'ları, güçlü bir interceptor sistemi ve kapsamlı bir exception hiyerarşisi sunar. Zero-dependency olan paketin çekirdeği **Node.js Native Fetch API** kullanır; ancak istenen farklı custom HTTP client'lara da kolayca genişletilebilir.
 

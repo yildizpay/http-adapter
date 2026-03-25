@@ -1,10 +1,15 @@
-# @yildizpay/http-adapter
-
-**🇬🇧 English** | [🇹🇷 Türkçe](README.tr.md)
-
-![Build Status](https://github.com/yildizpay/http-adapter/actions/workflows/ci.yml/badge.svg)
-![NPM Version](https://img.shields.io/npm/v/@yildizpay/http-adapter)
-![License](https://img.shields.io/npm/l/@yildizpay/http-adapter)
+<p align="center">
+  <img src="assets/logo.png" width="20%" alt="@yildizpay/http-adapter" />
+  <h1 align="center">@yildizpay/http-adapter</h1>
+  <p align="center">
+    <b>🇬🇧 English</b> | <a href="README.tr.md">🇹🇷 Türkçe</a>
+  </p>
+  <p align="center">
+    <img src="https://github.com/yildizpay/http-adapter/actions/workflows/ci.yml/badge.svg" alt="Build Status" />
+    <img src="https://img.shields.io/npm/v/@yildizpay/http-adapter" alt="NPM Version" />
+    <img src="https://img.shields.io/npm/l/@yildizpay/http-adapter" alt="License" />
+  </p>
+</p>
 
 A professional, robust, and highly configurable HTTP client adapter designed for enterprise-grade Node.js applications. It provides a fluent API, built-in resilience patterns, and a powerful interceptor system, all natively sitting on top of the **Node.js Native Fetch API**, making it a zero-dependency library while allowing injection of custom HTTP clients.
 
