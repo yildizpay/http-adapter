@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-03-25
+
+### Added
+
+- **`HttpAdapterBuilder`**: A fluent, chainable builder class for constructing fully configured `HttpAdapter` instances. Provides a readable alternative to `HttpAdapter.create()`, especially useful in dependency-injection containers or when assembling adapters with multiple options.
+- **`HttpAdapter.builder()` Static Factory**: A convenience entry point that returns a new `HttpAdapterBuilder`, enabling one-liner setups like `HttpAdapter.builder().withRetryPolicy(...).withCircuitBreaker(...).build()`.
+- **`withInterceptor(...interceptors)`**: Registers one or more interceptors via rest parameters. Can be called multiple times — all interceptors accumulate in registration order.
+- **`withRetryPolicy(policy)`**: Sets the retry policy on the builder.
+- **`withCircuitBreaker(breakerOrOptions)`**: Accepts either a pre-configured `CircuitBreaker` instance or a plain `CircuitBreakerOptions` object; in the latter case the instance is created automatically.
+- **`withHttpClient(client)`**: Overrides the default HTTP client transport — useful for testing or custom fetch integrations.
+
 ## [3.2.0] - 2026-03-25
 
 ### Added
