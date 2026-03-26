@@ -36,7 +36,7 @@ describe('ErrorConverter', () => {
     });
 
     it('should return CircuitBreakerOpenException as-is', () => {
-      const original = new CircuitBreakerOpenException('CB open');
+      const original = new CircuitBreakerOpenException();
       const result = ErrorConverter.toAdapterException(original);
       expect(result).toBe(original);
     });

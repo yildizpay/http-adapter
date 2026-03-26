@@ -381,14 +381,39 @@ const policy = RetryPolicies.fullJitter(3).retryIf(new BusinessRetryPredicate())
 Tamamen çökmüş bir downstream servisi beklemeye karşı sisteminizi korumak için `CircuitBreaker` kullanabilirsiniz. Belirli sayıda ardışık hata alındığında circuit açılır ve yanıt vermeyen servise gereksiz istek göndermeksizin anında `CircuitBreakerOpenException` fırlatır.
 
 ```typescript
-import { CircuitBreaker } from '@yildizpay/http-adapter';
+import { CircuitBreaker, CircuitBreakerOpenException } from '@yildizpay/http-adapter';
 
 const breaker = new CircuitBreaker({
   failureThreshold: 5,         // 5 hatadan sonra circuit'i aç
   resetTimeoutMs: 30000,       // 30 saniye sonra half-open test isteği gönder
   successThreshold: 1,         // 1 başarılı half-open request sonrası circuit'i kapat
 });
+
+// CircuitBreakerOpenException bir sonraki deneme zamanını taşır
+try {
+  await adapter.send(request);
+} catch (err) {
+  if (err instanceof CircuitBreakerOpenException) {
+    console.warn(`Circuit açık. ${err.retryAfterMs()}ms sonra tekrar dene`);
+  }
+}
 ```
+
+#### Durum makinesi
+
+```
+  [CLOSED] ──(failureThreshold aşıldı)──▶ [OPEN]
+     ▲                                        │
+     │                               (resetTimeoutMs)
+     │                                        │
+     └──(successThreshold karşılandı)── [HALF_OPEN] ──(hata)──▶ [OPEN]
+```
+
+#### HALF_OPEN'da neden sadece bir probe isteği geçer?
+
+Node.js, tek iş parçacıklı (single-threaded) bir event loop üzerinde çalışır; ancak `async/await` yapısı **kooperatif çoklu görev** (cooperative multitasking) modelini hayata geçirir: bir coroutine `await` noktasında askıya alındığında, event loop diğer coroutine'leri çalıştırmaya devam edebilir. Bu davranış, `HALF_OPEN` durumunda kritik bir risk yaratır: herhangi bir guard mekanizması olmaksızın, o anda gelen tüm istekler aynı `HALF_OPEN` durumunu okuyup eş zamanlı olarak ilerleyebilir — yeni toparlanmaya başlayan bir servisi bir anda çok sayıda istekle boğabilir.
+
+Bunu önlemek için circuit breaker bir **probe flag** kullanır: yalnızca ilk çağıran probe slotunu alır; probe tamamlanana kadar diğer tüm eş zamanlı çağrılar `CircuitBreakerOpenException` ile reddedilir. Bu bilinçli bir tasarım kararıdır — birkaç isteği feda ederek servisin gerçekten sağlıklı olup olmadığı güvenli biçimde doğrulanır.
 
 ## Interceptors
 

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-03-26
+
+### Added
+
+- **`CircuitBreakerOpenException.nextAttemptAt`**: A public field carrying the Unix timestamp (ms) at which the circuit will allow the next probe request through. Is `0` when no reset timeout is active (e.g. probe already in flight in HALF_OPEN).
+- **`CircuitBreakerOpenException.retryAfterMs()`**: Returns the number of milliseconds until the circuit allows a probe. Returns `0` if the timeout has already elapsed or is not set. Mirrors the `getRetryAfterMs()` pattern on `HttpException`.
+- **HALF_OPEN probe guard**: Only one concurrent request is allowed through in `HALF_OPEN` state. All other concurrent callers receive `CircuitBreakerOpenException` while the probe is in flight — preventing a recovering service from being overwhelmed by a burst of simultaneous requests the moment the reset timeout expires. This is a deliberate trade-off rooted in Node.js's cooperative async model (`async/await` coroutines sharing the event loop).
+
 ## [3.6.1] - 2026-03-26
 
 ### Fixed

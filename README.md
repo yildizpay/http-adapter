@@ -381,14 +381,39 @@ const policy = RetryPolicies.fullJitter(3).retryIf(new BusinessRetryPredicate())
 To protect your system from waiting for a completely down downstream service, you can employ the `CircuitBreaker`. It opens the circuit after a configured amount of consecutive failures and replies instantaneously with `CircuitBreakerOpenException` without hitting the unresponsive server.
 
 ```typescript
-import { CircuitBreaker } from '@yildizpay/http-adapter';
+import { CircuitBreaker, CircuitBreakerOpenException } from '@yildizpay/http-adapter';
 
 const breaker = new CircuitBreaker({
   failureThreshold: 5,         // Trip after 5 failures
   resetTimeoutMs: 30000,       // Try a 'half-open' request after 30 seconds
   successThreshold: 1,         // Close circuit after 1 successful half-open request
 });
+
+// CircuitBreakerOpenException carries when the circuit will allow the next probe
+try {
+  await adapter.send(request);
+} catch (err) {
+  if (err instanceof CircuitBreakerOpenException) {
+    console.warn(`Circuit is open. Retry after ${err.retryAfterMs()}ms`);
+  }
+}
 ```
+
+#### State machine
+
+```
+  [CLOSED] ──(failureThreshold reached)──▶ [OPEN]
+     ▲                                        │
+     │                                (resetTimeoutMs)
+     │                                        │
+     └──(successThreshold met)──── [HALF_OPEN] ──(failure)──▶ [OPEN]
+```
+
+#### Why only one probe in HALF_OPEN?
+
+Node.js runs on a single-threaded event loop, but `async/await` introduces cooperative multitasking: while one coroutine is suspended at an `await`, the event loop is free to start other coroutines. Without a guard, every request arriving during `HALF_OPEN` would read the same state and proceed concurrently — potentially overwhelming a service that has only just started to recover.
+
+To prevent this, the circuit breaker uses a **probe flag**: only the first caller gets the probe slot; all subsequent concurrent callers receive `CircuitBreakerOpenException` until the probe resolves. This is a deliberate trade-off — a few requests are rejected in exchange for a controlled, safe recovery test.
 
 ## Interceptors
 
