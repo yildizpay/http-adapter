@@ -2,7 +2,13 @@ import { defaultHttpClient } from './default-http-client';
 import { Request } from '../models/request';
 import { Response } from '../models/response';
 import { RequestContext } from '../models/request-context';
-import { HttpInterceptor } from '../contracts/http-interceptor.contract';
+import {
+  HttpInterceptor,
+  HttpRequestInterceptor,
+  HttpResponseInterceptor,
+  HttpValidatedResponseInterceptor,
+  HttpErrorInterceptor,
+} from '../contracts/http-interceptor.contract';
 import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { RetryExecutor } from '../resilience/retry-executor';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
@@ -27,6 +33,11 @@ import {
  * It is designed to be immutable in its configuration but can handle concurrent requests.
  */
 export class HttpAdapter {
+  private readonly requestInterceptors: HttpRequestInterceptor[];
+  private readonly responseInterceptors: HttpResponseInterceptor[];
+  private readonly validatedResponseInterceptors: HttpValidatedResponseInterceptor[];
+  private readonly errorInterceptors: HttpErrorInterceptor[];
+
   /**
    * Initializes a new instance of the HttpAdapter class.
    *
@@ -37,12 +48,25 @@ export class HttpAdapter {
    * @param correlationIdConfig - Optional global correlation ID propagation configuration.
    */
   private constructor(
-    private readonly interceptors: HttpInterceptor[],
+    interceptors: HttpInterceptor[],
     private readonly httpClient: HttpClientContract,
     private readonly retryPolicy?: RetryPolicy,
     private readonly circuitBreaker?: CircuitBreaker,
     private readonly correlationIdConfig?: CorrelationIdConfig,
-  ) {}
+  ) {
+    this.requestInterceptors = interceptors.filter(
+      (i): i is HttpRequestInterceptor => typeof i.onRequest === 'function',
+    );
+    this.responseInterceptors = interceptors.filter(
+      (i): i is HttpResponseInterceptor => typeof i.onResponse === 'function',
+    );
+    this.validatedResponseInterceptors = interceptors.filter(
+      (i): i is HttpValidatedResponseInterceptor => typeof i.onResponseValidated === 'function',
+    );
+    this.errorInterceptors = interceptors.filter(
+      (i): i is HttpErrorInterceptor => typeof i.onError === 'function',
+    );
+  }
 
   /**
    * Factory method to create a properly configured HttpAdapter.
@@ -115,33 +139,17 @@ export class HttpAdapter {
   }
 
   /**
-   * Executes the actual HTTP call after the request-side interceptor chain has finished.
-   * Handles response creation and flows through the response-side or error-side interceptors.
+   * Orchestrates the full request lifecycle: interceptors → HTTP call → validation → response.
    *
    * @private
-   * @template T - The expected shape of the response payload.
-   * @param request - The request object (possibly mutated by interceptors).
-   * @returns A promise that resolves to the final `Response<T>`.
    */
   private async dispatch<T = unknown>(request: Request): Promise<Response<T>> {
-    let processedRequest: Request = request;
-
-    /* Apply request-side interceptors in registration order */
-    for (const interceptor of this.interceptors) {
-      if (interceptor.onRequest) {
-        processedRequest = await interceptor.onRequest(processedRequest);
-      }
-    }
+    const processedRequest = await this.runRequestInterceptors(request);
 
     let requestContext: RequestContext | undefined;
 
     try {
-      /* Build final URL with query parameters */
-      const url = new URL(processedRequest.endpoint, processedRequest.baseUrl);
-      const searchParams = new URLSearchParams(processedRequest.queryParams);
-      if (searchParams.toString()) {
-        url.search = searchParams.toString();
-      }
+      const url = this.buildRequestUrl(processedRequest);
 
       requestContext = {
         method: processedRequest.method as string,
@@ -150,66 +158,132 @@ export class HttpAdapter {
       };
 
       processedRequest.setTimestamp(new Date());
-
-      /* Inject correlation ID header when propagation is enabled */
       this.applyCorrelationIdHeader(processedRequest);
 
-      /* Delegate to the underlying HTTP client */
-      const clientResponse = await this.httpClient.request<T>({
-        url: requestContext.url!,
-        method: processedRequest.method,
-        data: processedRequest.body,
-        headers: processedRequest.headers,
-        timeout: processedRequest.options?.timeout,
-      });
-
-      /* Construct strongly-typed response object */
-      let response = Response.create<T>(
-        clientResponse.data,
-        clientResponse.status,
-        clientResponse.headers ?? null,
-        requestContext,
-      );
-
-      /* Apply response-side interceptors — runs regardless of validation outcome */
-      for (const interceptor of this.interceptors) {
-        if (interceptor.onResponse) {
-          response = (await interceptor.onResponse(response)) as Response<T>;
-        }
-      }
-
-      /* Run response validators sequentially — first failure halts the chain.
-         Non-BaseAdapterException errors (e.g. ZodError) are wrapped in ValidationException
-         so callers always receive a typed, inspectable exception. */
-      for (const validator of request.validators) {
-        try {
-          await validator.validate(response);
-        } catch (err) {
-          if (err instanceof BaseAdapterException) throw err;
-          throw new ValidationException('Response validation failed', response, err);
-        }
-      }
-
-      /* Apply post-validation interceptors — only reached when all validators pass */
-      for (const interceptor of this.interceptors) {
-        if (interceptor.onResponseValidated) {
-          response = (await interceptor.onResponseValidated(response)) as Response<T>;
-        }
-      }
-
-      return response;
+      const response = await this.executeHttpCall<T>(processedRequest, url, requestContext);
+      const interceptedResponse = await this.runResponseInterceptors<T>(response);
+      await this.runValidators<T>(interceptedResponse, request);
+      return await this.runPostValidationInterceptors<T>(interceptedResponse);
     } catch (error) {
-      let propagatedError = ErrorConverter.toAdapterException(error, requestContext);
-
-      /* Apply error-side interceptors in registration order */
-      for (const interceptor of this.interceptors) {
-        if (interceptor.onError) {
-          propagatedError = await interceptor.onError(propagatedError, processedRequest);
-        }
-      }
-
+      const propagatedError = await this.runErrorInterceptors(
+        ErrorConverter.toAdapterException(error, requestContext),
+        processedRequest,
+      );
       throw propagatedError;
     }
+  }
+
+  /**
+   * Runs all request-side interceptors in registration order.
+   *
+   * @private
+   */
+  private async runRequestInterceptors(request: Request): Promise<Request> {
+    let processedRequest = request;
+    for (const interceptor of this.requestInterceptors) {
+      processedRequest = await interceptor.onRequest(processedRequest);
+    }
+    return processedRequest;
+  }
+
+  /**
+   * Builds the final request URL including query parameters.
+   *
+   * @private
+   */
+  private buildRequestUrl(request: Request): URL {
+    const url = new URL(request.endpoint, request.baseUrl);
+    const searchParams = new URLSearchParams(request.queryParams);
+    if (searchParams.toString()) {
+      url.search = searchParams.toString();
+    }
+    return url;
+  }
+
+  /**
+   * Delegates the HTTP call to the underlying client and constructs a typed response.
+   *
+   * @private
+   */
+  private async executeHttpCall<T>(
+    request: Request,
+    url: URL,
+    requestContext: RequestContext,
+  ): Promise<Response<T>> {
+    const clientResponse = await this.httpClient.request<T>({
+      url: url.toString(),
+      method: request.method,
+      data: request.body,
+      headers: request.headers,
+      timeout: request.options?.timeout,
+    });
+
+    return Response.create<T>(
+      clientResponse.data,
+      clientResponse.status,
+      clientResponse.headers ?? null,
+      requestContext,
+    );
+  }
+
+  /**
+   * Runs all response-side interceptors in registration order.
+   * Fires regardless of validation outcome.
+   *
+   * @private
+   */
+  private async runResponseInterceptors<T>(response: Response<T>): Promise<Response<T>> {
+    let result = response;
+    for (const interceptor of this.responseInterceptors) {
+      result = (await interceptor.onResponse(result)) as Response<T>;
+    }
+    return result;
+  }
+
+  /**
+   * Runs all registered response validators sequentially.
+   * Non-`BaseAdapterException` errors are wrapped in `ValidationException`.
+   *
+   * @private
+   */
+  private async runValidators<T>(response: Response<T>, request: Request): Promise<void> {
+    for (const validator of request.validators) {
+      try {
+        await validator.validate(response);
+      } catch (err) {
+        if (err instanceof BaseAdapterException) throw err;
+        throw new ValidationException('Response validation failed', response, err);
+      }
+    }
+  }
+
+  /**
+   * Runs post-validation interceptors — only reached when all validators pass.
+   *
+   * @private
+   */
+  private async runPostValidationInterceptors<T>(response: Response<T>): Promise<Response<T>> {
+    let result = response;
+    for (const interceptor of this.validatedResponseInterceptors) {
+      result = (await interceptor.onResponseValidated(result)) as Response<T>;
+    }
+    return result;
+  }
+
+  /**
+   * Runs all error-side interceptors in registration order.
+   *
+   * @private
+   */
+  private async runErrorInterceptors(
+    error: BaseAdapterException,
+    request: Request,
+  ): Promise<BaseAdapterException> {
+    let propagatedError = error;
+    for (const interceptor of this.errorInterceptors) {
+      propagatedError = await interceptor.onError(propagatedError, request);
+    }
+    return propagatedError;
   }
 
   /**
@@ -225,7 +299,6 @@ export class HttpAdapter {
    * @private
    */
   private applyCorrelationIdHeader(request: Request): void {
-    /* Per-request config takes full precedence over the adapter-level config */
     const effectiveConfig = request.correlationIdConfig ?? this.correlationIdConfig;
 
     if (!effectiveConfig?.enabled) return;
