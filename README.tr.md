@@ -415,6 +415,78 @@ Node.js, tek iş parçacıklı (single-threaded) bir event loop üzerinde çalı
 
 Bunu önlemek için circuit breaker bir **probe flag** kullanır: yalnızca ilk çağıran probe slotunu alır; probe tamamlanana kadar diğer tüm eş zamanlı çağrılar `CircuitBreakerOpenException` ile reddedilir. Bu bilinçli bir tasarım kararıdır — birkaç isteği feda ederek servisin gerçekten sağlıklı olup olmadığı güvenli biçimde doğrulanır.
 
+## Observability
+
+Adaptör, iki katmanlı bir observability sistemiyle birlikte gelir. **Observer'lar salt okunurdur** — request veya response'u değiştiremezler. Metrics, yapılandırılmış loglama ve dağıtık izleme için observer'ları, pipeline'ı değiştirmeniz gerektiğinde ise interceptor'ları kullanın.
+
+### `HttpAdapterObserver`
+
+Builder üzerindeki `.withObserver()` metoduyla adaptöre tek bir observer bağlanır.
+
+| Hook | Ne zaman tetiklenir |
+|---|---|
+| `onRequestStart(request)` | Tüm request interceptor'larından sonra, HTTP çağrısından hemen önce |
+| `onRequestSuccess(response, durationMs)` | Başarılı yanıt sonrasında (retry süresi dahil) |
+| `onRequestFailure(error, durationMs)` | Son hata çağırana iletildiğinde |
+| `onRetry(attempt, error, delayMs)` | Her retry planlandığında, backoff gecikmesinden önce |
+
+```typescript
+import { HttpAdapterObserver, HttpAdapter, RetryPolicies } from '@yildizpay/http-adapter';
+
+class MetricsObserver implements HttpAdapterObserver {
+  onRequestSuccess(_response: Response, durationMs: number): void {
+    metrics.histogram('http.request.duration', durationMs);
+  }
+
+  onRequestFailure(error: BaseAdapterException, durationMs: number): void {
+    metrics.increment('http.request.error', { type: error.name });
+  }
+
+  onRetry(attempt: number, _error: BaseAdapterException, delayMs: number): void {
+    logger.warn(`Retry denemesi ${attempt}, ${delayMs}ms sonra`);
+  }
+}
+
+const adapter = HttpAdapter.builder()
+  .withRetryPolicy(RetryPolicies.exponential(3))
+  .withObserver(new MetricsObserver())
+  .build();
+```
+
+### `CircuitBreakerObserver`
+
+Fluent `.observe()` metodu aracılığıyla bir `CircuitBreaker` instance'ına observer bağlanır.
+
+| Hook | Ne zaman tetiklenir |
+|---|---|
+| `onStateChange(from, to)` | Her state geçişinde (CLOSED↔OPEN↔HALF_OPEN) |
+| `onSuccess()` | Her başarılı çalıştırma sonrasında |
+| `onFailure(error)` | Bir hata sayıldığında (`isFailure` predicate `true` döndürdüğünde) |
+| `onProbeRejected()` | HALF_OPEN'da eş zamanlı bir çağıran reddedildiğinde |
+
+```typescript
+import { CircuitBreaker, CircuitBreakerObserver, CircuitState } from '@yildizpay/http-adapter';
+
+class CircuitMetricsObserver implements CircuitBreakerObserver {
+  onStateChange(from: CircuitState, to: CircuitState): void {
+    logger.warn(`Circuit breaker: ${from} → ${to}`);
+    metrics.increment('circuit_breaker.state_change', { from, to });
+  }
+
+  onProbeRejected(): void {
+    metrics.increment('circuit_breaker.probe_rejected');
+  }
+}
+
+const adapter = HttpAdapter.builder()
+  .withCircuitBreaker(
+    new CircuitBreaker({ failureThreshold: 5 })
+      .observe(new CircuitMetricsObserver()),
+  )
+  .withObserver(new MetricsObserver())
+  .build();
+```
+
 ## Interceptors
 
 **Interface Segregation Principle (ISP)** sayesinde gereksiz metodları implement etmek zorunda kalmazsınız. Yalnızca ihtiyaç duyduğunuz lifecycle event'e göre `HttpRequestInterceptor`, `HttpResponseInterceptor` veya `HttpErrorInterceptor` interface'ini implement edebilirsiniz.

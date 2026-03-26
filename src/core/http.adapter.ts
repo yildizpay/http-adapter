@@ -21,6 +21,7 @@ import {
   CorrelationIdConfig,
   DEFAULT_CORRELATION_ID_HEADER,
 } from '../models/correlation-id-config';
+import { HttpAdapterObserver } from '../observability/http-adapter-observer';
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -28,6 +29,7 @@ import {
  * This class acts as a flexible and resilient HTTP client wrapper. It supports:
  * - **Interceptors**: A chain of middleware to modify requests, responses, and handle errors.
  * - **Retry Policies**: Configurable strategies for handling transient failures (e.g., exponential backoff).
+ * - **Observability**: A read-only observer for request lifecycle events (start, success, failure, retry).
  * - **Strong Typing**: Generic support for typed response payloads.
  *
  * It is designed to be immutable in its configuration but can handle concurrent requests.
@@ -46,6 +48,7 @@ export class HttpAdapter {
    * @param retryPolicy - Optional resiliency policy; if absent, no retries are attempted.
    * @param circuitBreaker - Optional circuit breaker for fault isolation.
    * @param correlationIdConfig - Optional global correlation ID propagation configuration.
+   * @param observer - Optional observer for request lifecycle telemetry.
    */
   private constructor(
     interceptors: HttpInterceptor[],
@@ -53,6 +56,7 @@ export class HttpAdapter {
     private readonly retryPolicy?: RetryPolicy,
     private readonly circuitBreaker?: CircuitBreaker,
     private readonly correlationIdConfig?: CorrelationIdConfig,
+    private readonly observer?: HttpAdapterObserver,
   ) {
     this.requestInterceptors = interceptors.filter(
       (i): i is HttpRequestInterceptor => typeof i.onRequest === 'function',
@@ -76,6 +80,7 @@ export class HttpAdapter {
    * @param httpClient - An optional custom HTTP client (defaults to `defaultHttpClient`).
    * @param circuitBreaker - An optional circuit breaker instance.
    * @param correlationIdConfig - An optional global correlation ID propagation configuration.
+   * @param observer - An optional observer for request lifecycle telemetry.
    * @returns A new instance of `HttpAdapter`.
    */
   public static create(
@@ -84,6 +89,7 @@ export class HttpAdapter {
     httpClient?: HttpClientContract,
     circuitBreaker?: CircuitBreaker,
     correlationIdConfig?: CorrelationIdConfig,
+    observer?: HttpAdapterObserver,
   ): HttpAdapter {
     return new HttpAdapter(
       interceptors,
@@ -91,6 +97,7 @@ export class HttpAdapter {
       retryPolicy,
       circuitBreaker,
       correlationIdConfig,
+      observer,
     );
   }
 
@@ -107,6 +114,7 @@ export class HttpAdapter {
    *   .withRetryPolicy(RetryPolicies.exponential(3))
    *   .withCircuitBreaker({ failureThreshold: 5 })
    *   .withCorrelationId()
+   *   .withObserver(new MetricsObserver())
    *   .build();
    * ```
    */
@@ -123,19 +131,29 @@ export class HttpAdapter {
    * @throws The last error encountered if all retries fail, or if an interceptor throws.
    */
   public async send<T = unknown>(request: Request): Promise<Response<T>> {
+    const startTime = Date.now();
+
     const executePipeline = () => {
       if (!this.retryPolicy) {
         return this.dispatch<T>(request);
       }
-      const executor = new RetryExecutor(this.retryPolicy);
+      const executor = new RetryExecutor(this.retryPolicy, this.observer);
       return executor.execute(() => this.dispatch<T>(request));
     };
 
-    if (!this.circuitBreaker) {
-      return executePipeline();
-    }
+    try {
+      const response = await (this.circuitBreaker
+        ? this.circuitBreaker.execute(executePipeline)
+        : executePipeline());
 
-    return this.circuitBreaker.execute(executePipeline);
+      this.observer?.onRequestSuccess?.(response, Date.now() - startTime);
+      return response;
+    } catch (error) {
+      if (error instanceof BaseAdapterException) {
+        this.observer?.onRequestFailure?.(error, Date.now() - startTime);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -159,6 +177,8 @@ export class HttpAdapter {
 
       processedRequest.setTimestamp(new Date());
       this.applyCorrelationIdHeader(processedRequest);
+
+      this.observer?.onRequestStart?.(processedRequest);
 
       const response = await this.executeHttpCall<T>(processedRequest, url, requestContext);
       const interceptedResponse = await this.runResponseInterceptors<T>(response);

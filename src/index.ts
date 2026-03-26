@@ -30,6 +30,10 @@ export * from './resilience/circuit-breaker/circuit-state.enum';
 export * from './resilience/circuit-breaker/circuit-breaker-options';
 export * from './resilience/circuit-breaker/circuit-breaker';
 
+// Observability
+export * from './observability/http-adapter-observer';
+export * from './observability/circuit-breaker-observer';
+
 // Auth
 export * from './auth/token-provider';
 export * from './auth/bearer-auth.interceptor';
