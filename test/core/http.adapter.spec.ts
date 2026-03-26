@@ -8,6 +8,7 @@ import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { defaultHttpClient } from '../../src/core/default-http-client';
 import { HttpClientContract } from '../../src/contracts/http-client.contract';
 import { ValidationException } from '../../src/exceptions/validation.exception';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
 
 jest.mock('../../src/core/default-http-client', () => ({
   defaultHttpClient: {
@@ -188,11 +189,7 @@ describe('HttpAdapter', () => {
     });
 
     it('should use retry policy calls when provided', async () => {
-      const mockRetryPolicy = {
-        maxAttempts: 3,
-        retryOn: jest.fn().mockReturnValue(false),
-        backoffMs: jest.fn().mockReturnValue(0),
-      };
+      const mockRetryPolicy = RetryPolicies.exponential(3);
 
       adapter = HttpAdapter.create([], mockRetryPolicy, mockHttpClient);
 

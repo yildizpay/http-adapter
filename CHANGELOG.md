@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-03-26
+
+### Added
+
+- **`RetryPredicate` Interface**: A pluggable contract for overriding the retry decision. Implement `shouldRetry(error: BaseAdapterException): boolean` to encapsulate complex conditions (e.g. combining `isRetryable()` with circuit state or feature flags).
+- **`RetryPolicy.retryIf(predicate)`**: New method on the base `RetryPolicy` class that accepts either a `RetryPredicate` instance or a plain `(error: BaseAdapterException) => boolean` function. Returns the policy for chaining. When not called, the default behaviour (`error.isRetryable()`) is preserved.
+- **`RetryPolicies.fixedDelay(attempts, delayMs)`**: New policy — identical wait time between every retry attempt.
+- **`RetryPolicies.linearBackoff(attempts, stepMs)`**: New policy — wait time grows linearly (`attempt * stepMs`).
+- **`RetryPolicies.fullJitter(attempts, baseMs)`**: New policy — fully randomised delay within an exponential cap (`random(0, 2^attempt * baseMs)`). Best choice for spreading load across many concurrent clients.
+- **`RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)`**: New policy — each delay is derived from the previous one (`random(baseMs, prevDelay * 3)`), capped at `maxDelayMs`. Provides the widest spread for high-concurrency scenarios (AWS-recommended algorithm).
+- **`retryOn` moved to base class**: All policies now share the same retry decision logic in `RetryPolicy`, delegating to the `retryIf` predicate when set, or `error.isRetryable()` by default.
+
 ## [3.5.0] - 2026-03-26
 
 ### Added
