@@ -334,15 +334,46 @@ export class GlobalErrorInterceptor implements HttpErrorInterceptor {
 
 Network instability is inevitable. This adapter allows you to define robust retry strategies.
 
-### Exponential Backoff
+### Built-in Retry Policies
 
-The built-in `ExponentialBackoffPolicy` waits increasingly longer between retries (e.g., 200ms, 400ms, 800ms) and adds random jitter to prevent "thundering herd" issues.
+| Policy | Factory | Behaviour |
+|---|---|---|
+| Exponential Backoff | `RetryPolicies.exponential(attempts)` | Delay doubles with each attempt plus small jitter — default choice |
+| Fixed Delay | `RetryPolicies.fixedDelay(attempts, delayMs)` | Constant wait between every retry |
+| Linear Backoff | `RetryPolicies.linearBackoff(attempts, stepMs)` | Delay grows linearly (`attempt × stepMs`) |
+| Full Jitter | `RetryPolicies.fullJitter(attempts, baseMs)` | Fully random delay within exponential cap — best for spreading concurrent load |
+| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | AWS-recommended algorithm with widest spread across concurrent clients |
 
 ```typescript
 import { RetryPolicies } from '@yildizpay/http-adapter';
 
-// Retries on 429, 502, 503, 504 and network errors
-const retryPolicy = RetryPolicies.exponential(5);
+// All policies retry on 429, 502, 503, 504 and network errors by default
+RetryPolicies.exponential(3);
+RetryPolicies.fixedDelay(3, 1000);          // 1 s between each attempt
+RetryPolicies.linearBackoff(3, 500);        // 500 ms, 1000 ms, 1500 ms
+RetryPolicies.fullJitter(3, 100);           // random within [0, 2^attempt * 100 ms]
+RetryPolicies.decorrelatedJitter(3, 100);   // AWS decorrelated jitter, cap 30 s
+```
+
+### Custom Retry Predicate
+
+Override the default retry decision (`error.isRetryable()`) for any policy via `retryIf()`. Accepts a plain function or a class implementing `RetryPredicate`.
+
+```typescript
+import { RetryPolicies, RetryPredicate, BaseAdapterException, isNetworkException } from '@yildizpay/http-adapter';
+
+// Inline function
+const policy = RetryPolicies.exponential(3)
+  .retryIf((error) => isNetworkException(error));
+
+// Class-based predicate
+class BusinessRetryPredicate implements RetryPredicate {
+  shouldRetry(error: BaseAdapterException): boolean {
+    return error.isRetryable() && myCircuitIsAllowing();
+  }
+}
+
+const policy = RetryPolicies.fullJitter(3).retryIf(new BusinessRetryPredicate());
 ```
 
 ### Circuit Breaker

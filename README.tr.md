@@ -334,15 +334,46 @@ export class GlobalErrorInterceptor implements HttpErrorInterceptor {
 
 Ağ kararsızlığı kaçınılmazdır. Bu adaptör, sağlam retry stratejileri tanımlamanıza olanak tanır.
 
-### Exponential Backoff
+### Built-in Retry Policy'ler
 
-Built-in `ExponentialBackoffPolicy`, denemeler arasında giderek artan süreler (ör. 200ms, 400ms, 800ms) bekler ve "thundering herd" sorununu önlemek için gecikmelere rastgele jitter ekler.
+| Policy | Factory | Davranış |
+|---|---|---|
+| Exponential Backoff | `RetryPolicies.exponential(attempts)` | Her denemede gecikme iki katına çıkar, küçük jitter eklenir — varsayılan seçim |
+| Fixed Delay | `RetryPolicies.fixedDelay(attempts, delayMs)` | Her retry arasında sabit bekleme süresi |
+| Linear Backoff | `RetryPolicies.linearBackoff(attempts, stepMs)` | Gecikme doğrusal büyür (`attempt × stepMs`) |
+| Full Jitter | `RetryPolicies.fullJitter(attempts, baseMs)` | Üstel cap içinde tamamen rastgele gecikme — concurrent yükü yaymak için en iyi seçim |
+| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | AWS tarafından önerilen algoritma, concurrent istemciler arasında en geniş yayılımı sağlar |
 
 ```typescript
 import { RetryPolicies } from '@yildizpay/http-adapter';
 
-// 429, 502, 503, 504 ve ağ hatalarında retry yapar
-const retryPolicy = RetryPolicies.exponential(5);
+// Tüm policy'ler varsayılan olarak 429, 502, 503, 504 ve ağ hatalarında retry yapar
+RetryPolicies.exponential(3);
+RetryPolicies.fixedDelay(3, 1000);          // her denemede 1 sn bekleme
+RetryPolicies.linearBackoff(3, 500);        // 500 ms, 1000 ms, 1500 ms
+RetryPolicies.fullJitter(3, 100);           // [0, 2^attempt * 100 ms] aralığında rastgele
+RetryPolicies.decorrelatedJitter(3, 100);   // AWS decorrelated jitter, cap 30 sn
+```
+
+### Özel Retry Predicate
+
+`retryIf()` ile herhangi bir policy'nin varsayılan retry kararını (`error.isRetryable()`) override edebilirsiniz. Düz bir fonksiyon ya da `RetryPredicate` interface'ini implement eden bir sınıf kabul eder.
+
+```typescript
+import { RetryPolicies, RetryPredicate, BaseAdapterException, isNetworkException } from '@yildizpay/http-adapter';
+
+// Inline fonksiyon
+const policy = RetryPolicies.exponential(3)
+  .retryIf((error) => isNetworkException(error));
+
+// Sınıf tabanlı predicate
+class BusinessRetryPredicate implements RetryPredicate {
+  shouldRetry(error: BaseAdapterException): boolean {
+    return error.isRetryable() && myCircuitIsAllowing();
+  }
+}
+
+const policy = RetryPolicies.fullJitter(3).retryIf(new BusinessRetryPredicate());
 ```
 
 ### Circuit Breaker

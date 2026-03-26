@@ -16,10 +16,16 @@ export * from './models/correlation-id-config';
 // Contracts
 export * from './contracts/http-interceptor.contract';
 export * from './contracts/retry-policy.contract';
+export * from './contracts/retry-predicate.contract';
 export * from './contracts/response-validator.contract';
 
 // Resilience
 export * from './resilience/retry.policies';
+export * from './resilience/policies/exponential-backoff.retry-policy';
+export * from './resilience/policies/fixed-delay.retry-policy';
+export * from './resilience/policies/linear-backoff.retry-policy';
+export * from './resilience/policies/full-jitter.retry-policy';
+export * from './resilience/policies/decorrelated-jitter.retry-policy';
 export * from './resilience/circuit-breaker/circuit-state.enum';
 export * from './resilience/circuit-breaker/circuit-breaker-options';
 export * from './resilience/circuit-breaker/circuit-breaker';
