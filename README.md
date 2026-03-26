@@ -415,6 +415,78 @@ Node.js runs on a single-threaded event loop, but `async/await` introduces coope
 
 To prevent this, the circuit breaker uses a **probe flag**: only the first caller gets the probe slot; all subsequent concurrent callers receive `CircuitBreakerOpenException` until the probe resolves. This is a deliberate trade-off — a few requests are rejected in exchange for a controlled, safe recovery test.
 
+## Observability
+
+The adapter ships with a two-tier observability system. **Observers are read-only** — they cannot modify requests or responses. Use them for metrics, structured logging, and distributed tracing. Use interceptors when you need to mutate the pipeline.
+
+### `HttpAdapterObserver`
+
+Attach a single observer to the adapter via `.withObserver()` on the builder.
+
+| Hook | When it fires |
+|---|---|
+| `onRequestStart(request)` | After all request interceptors, immediately before the HTTP call |
+| `onRequestSuccess(response, durationMs)` | After a successful response (includes retry time if retries occurred) |
+| `onRequestFailure(error, durationMs)` | When the final error is propagated to the caller |
+| `onRetry(attempt, error, delayMs)` | Each time a retry is scheduled, before the backoff delay |
+
+```typescript
+import { HttpAdapterObserver, HttpAdapter, RetryPolicies } from '@yildizpay/http-adapter';
+
+class MetricsObserver implements HttpAdapterObserver {
+  onRequestSuccess(_response: Response, durationMs: number): void {
+    metrics.histogram('http.request.duration', durationMs);
+  }
+
+  onRequestFailure(error: BaseAdapterException, durationMs: number): void {
+    metrics.increment('http.request.error', { type: error.name });
+  }
+
+  onRetry(attempt: number, _error: BaseAdapterException, delayMs: number): void {
+    logger.warn(`Retry attempt ${attempt} in ${delayMs}ms`);
+  }
+}
+
+const adapter = HttpAdapter.builder()
+  .withRetryPolicy(RetryPolicies.exponential(3))
+  .withObserver(new MetricsObserver())
+  .build();
+```
+
+### `CircuitBreakerObserver`
+
+Attach an observer to a `CircuitBreaker` instance via the fluent `.observe()` method.
+
+| Hook | When it fires |
+|---|---|
+| `onStateChange(from, to)` | On every state transition (CLOSED↔OPEN↔HALF_OPEN) |
+| `onSuccess()` | After every successful execution |
+| `onFailure(error)` | When a failure is counted (i.e. `isFailure` predicate returned `true`) |
+| `onProbeRejected()` | When a concurrent caller is turned away in HALF_OPEN |
+
+```typescript
+import { CircuitBreaker, CircuitBreakerObserver, CircuitState } from '@yildizpay/http-adapter';
+
+class CircuitMetricsObserver implements CircuitBreakerObserver {
+  onStateChange(from: CircuitState, to: CircuitState): void {
+    logger.warn(`Circuit breaker: ${from} → ${to}`);
+    metrics.increment('circuit_breaker.state_change', { from, to });
+  }
+
+  onProbeRejected(): void {
+    metrics.increment('circuit_breaker.probe_rejected');
+  }
+}
+
+const adapter = HttpAdapter.builder()
+  .withCircuitBreaker(
+    new CircuitBreaker({ failureThreshold: 5 })
+      .observe(new CircuitMetricsObserver()),
+  )
+  .withObserver(new MetricsObserver())
+  .build();
+```
+
 ## Interceptors
 
 Thanks to the **Interface Segregation Principle (ISP)**, you aren't forced to implement massive interfaces. You can hook into the exact lifecycle event you need by implementing `HttpRequestInterceptor`, `HttpResponseInterceptor`, or `HttpErrorInterceptor`.

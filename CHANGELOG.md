@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2026-03-26
+
+### Added
+
+- **`HttpAdapterObserver` Interface**: A read-only observer for the `HttpAdapter` request lifecycle. Implement any of the optional hooks — `onRequestStart`, `onRequestSuccess`, `onRequestFailure`, `onRetry` — to integrate telemetry, metrics, or structured logging without coupling your monitoring logic to interceptors.
+- **`CircuitBreakerObserver` Interface**: A read-only observer for `CircuitBreaker` lifecycle events. Exposes `onStateChange`, `onSuccess`, `onFailure`, and `onProbeRejected` hooks.
+- **`CircuitBreaker.observe(observer)`**: Fluent method to attach a `CircuitBreakerObserver` — consistent with the `RetryPolicy.retryIf()` pattern.
+- **`HttpAdapterBuilder.withObserver(observer)`**: Registers an `HttpAdapterObserver` on the builder.
+- **`onRetry` forwarded from `RetryExecutor`**: The adapter now propagates retry events (attempt number, error, computed delay) to the observer on each retry cycle.
+
 ## [3.7.0] - 2026-03-26
 
 ### Added

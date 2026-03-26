@@ -1,4 +1,6 @@
 import { RetryPolicy } from '../contracts/retry-policy.contract';
+import { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import { HttpAdapterObserver } from '../observability/http-adapter-observer';
 
 /**
  * Executes an asynchronous operation with configurable retry semantics.
@@ -12,11 +14,15 @@ import { RetryPolicy } from '../contracts/retry-policy.contract';
  */
 export class RetryExecutor {
   /**
-   * Creates a new instance bound to the supplied retry policy.
+   * Creates a new instance bound to the supplied retry policy and an optional observer.
    *
    * @param policy - The strategy that determines when and how retries occur.
+   * @param observer - An optional observer to be notified on each retry attempt.
    */
-  constructor(private readonly policy: RetryPolicy) {}
+  constructor(
+    private readonly policy: RetryPolicy,
+    private readonly observer?: HttpAdapterObserver,
+  ) {}
 
   /**
    * Runs the provided asynchronous operation, retrying on failure according to
@@ -33,19 +39,18 @@ export class RetryExecutor {
 
     while (true) {
       try {
-        // Operation succeeded; return its result immediately.
         return await operation();
       } catch (err) {
-        // Policy indicates the error is non-retryable; propagate it.
         if (!this.policy.retryOn(err)) throw err;
 
-        // Maximum retry attempts reached; propagate the final error.
         if (attempt >= this.policy.maxAttempts) throw err;
 
-        // Compute backoff delay before the next attempt.
         const delay = this.policy.backoffMs(attempt);
 
-        // Pause execution for the computed delay.
+        if (this.observer?.onRetry && err instanceof BaseAdapterException) {
+          this.observer.onRetry(attempt, err, delay);
+        }
+
         await new Promise((resolve) => setTimeout(resolve, delay));
 
         attempt++;

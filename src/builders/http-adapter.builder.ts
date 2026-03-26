@@ -8,6 +8,7 @@ import {
   CorrelationIdConfig,
   DEFAULT_CORRELATION_ID_HEADER,
 } from '../models/correlation-id-config';
+import { HttpAdapterObserver } from '../observability/http-adapter-observer';
 
 /**
  * A fluent builder for constructing a fully configured `HttpAdapter` instance.
@@ -32,6 +33,7 @@ export class HttpAdapterBuilder {
   private httpClient: HttpClientContract | undefined;
   private circuitBreaker: CircuitBreaker | undefined;
   private correlationIdConfig: CorrelationIdConfig | undefined;
+  private observer: HttpAdapterObserver | undefined;
 
   /**
    * Registers one or more interceptors. Can be called multiple times — interceptors
@@ -104,6 +106,25 @@ export class HttpAdapterBuilder {
   }
 
   /**
+   * Registers an observer for request lifecycle telemetry.
+   *
+   * The observer receives read-only notifications at key points in the request
+   * lifecycle (start, success, failure, retry) without being able to modify
+   * requests or responses — unlike interceptors.
+   *
+   * @param observer - An `HttpAdapterObserver` implementation.
+   *
+   * @example
+   * ```typescript
+   * builder.withObserver(new MetricsObserver())
+   * ```
+   */
+  public withObserver(observer: HttpAdapterObserver): this {
+    this.observer = observer;
+    return this;
+  }
+
+  /**
    * Builds and returns a configured `HttpAdapter` instance.
    *
    * @returns A new `HttpAdapter` ready to send requests.
@@ -115,6 +136,7 @@ export class HttpAdapterBuilder {
       this.httpClient,
       this.circuitBreaker,
       this.correlationIdConfig,
+      this.observer,
     );
   }
 }

@@ -1,6 +1,7 @@
 import { CircuitState } from './circuit-state.enum';
 import { CircuitBreakerOptions } from './circuit-breaker-options';
 import { CircuitBreakerOpenException } from '../../exceptions/circuit-breaker-open.exception';
+import { CircuitBreakerObserver } from '../../observability/circuit-breaker-observer';
 
 /**
  * A classic Circuit Breaker implementation using a three-state machine (CLOSED → OPEN → HALF_OPEN).
@@ -26,6 +27,18 @@ import { CircuitBreakerOpenException } from '../../exceptions/circuit-breaker-op
  * only just started to recover. The probe flag (`halfOpenProbeInFlight`) acts as a lightweight
  * semaphore: only the first caller gets the probe slot; all subsequent callers are rejected with
  * `CircuitBreakerOpenException` until the probe resolves.
+ *
+ * ## Observability
+ *
+ * Attach a `CircuitBreakerObserver` via `.observe()` to receive real-time notifications
+ * on state changes, successes, failures, and rejected probes — without coupling your
+ * monitoring logic to the circuit breaker's internals.
+ *
+ * @example
+ * ```typescript
+ * const breaker = new CircuitBreaker({ failureThreshold: 5 })
+ *   .observe(new CircuitMetricsObserver());
+ * ```
  */
 export class CircuitBreaker {
   private state: CircuitState = CircuitState.CLOSED;
@@ -33,6 +46,7 @@ export class CircuitBreaker {
   private successCount: number = 0;
   private nextAttemptAt: number = 0;
   private halfOpenProbeInFlight: boolean = false;
+  private observer: CircuitBreakerObserver | undefined;
 
   private readonly failureThreshold: number;
   private readonly resetTimeoutMs: number;
@@ -44,6 +58,21 @@ export class CircuitBreaker {
     this.resetTimeoutMs = options?.resetTimeoutMs ?? 60000;
     this.successThreshold = options?.successThreshold ?? 1;
     this.isFailurePredicate = options?.isFailure ?? (() => true);
+  }
+
+  /**
+   * Attaches an observer to receive lifecycle notifications from this circuit breaker.
+   * Returns the instance for fluent chaining.
+   *
+   * @example
+   * ```typescript
+   * const breaker = new CircuitBreaker({ failureThreshold: 5 })
+   *   .observe(new CircuitMetricsObserver());
+   * ```
+   */
+  public observe(observer: CircuitBreakerObserver): this {
+    this.observer = observer;
+    return this;
   }
 
   /**
@@ -77,21 +106,25 @@ export class CircuitBreaker {
     }
 
     if (currentState === CircuitState.HALF_OPEN) {
-      if (this.halfOpenProbeInFlight)
+      if (this.halfOpenProbeInFlight) {
+        this.observer?.onProbeRejected?.();
         throw new CircuitBreakerOpenException(
           0,
           'Circuit Breaker is HALF_OPEN. A probe request is already in flight.',
         );
+      }
       this.halfOpenProbeInFlight = true;
     }
 
     try {
       const result = await operation();
       this.recordSuccess();
+      this.observer?.onSuccess?.();
       return result;
     } catch (error) {
       if (this.isFailurePredicate(error)) {
         this.recordFailure();
+        this.observer?.onFailure?.(error);
       }
       throw error;
     } finally {
@@ -124,10 +157,12 @@ export class CircuitBreaker {
   }
 
   private transitionTo(newState: CircuitState): void {
+    const previousState = this.state;
     this.state = newState;
     this.failureCount = 0;
     this.successCount = 0;
     this.halfOpenProbeInFlight = false;
     this.nextAttemptAt = newState === CircuitState.OPEN ? Date.now() + this.resetTimeoutMs : 0;
+    this.observer?.onStateChange?.(previousState, newState);
   }
 }
