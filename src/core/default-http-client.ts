@@ -31,7 +31,10 @@ export class FetchHttpClient implements HttpClientContract {
           'Content-Type': 'application/json',
           ...config.headers,
         },
-        body: config.data ? JSON.stringify(config.data) : undefined,
+        body:
+          config.method !== 'GET' && config.method !== 'HEAD' && config.data
+            ? JSON.stringify(config.data)
+            : undefined,
         signal: controller.signal,
       });
 
