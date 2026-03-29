@@ -168,7 +168,7 @@ describe('CircuitBreaker', () => {
     it('should respect custom isFailure predicate', async () => {
       const cb = new CircuitBreaker({
         failureThreshold: 1,
-        isFailure: (err: any) => err.message !== 'ignore_me',
+        isFailure: (err: unknown) => err instanceof Error && err.message !== 'ignore_me',
       });
 
       await expect(

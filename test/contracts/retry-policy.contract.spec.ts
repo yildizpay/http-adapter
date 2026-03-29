@@ -4,6 +4,7 @@ import { TimeoutException } from '../../src/exceptions/network.exceptions';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
 import { RetryPredicate } from '../../src/contracts/retry-predicate.contract';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import { Response } from '../../src/models/response';
 
 class TestPolicy extends RetryPolicy {
   maxAttempts = 3;
@@ -75,11 +76,9 @@ describe('RetryPolicy', () => {
     it('should delegate to shouldRetry on the predicate instance', () => {
       const predicate: RetryPredicate = { shouldRetry: () => true };
       policy.retryIf(predicate);
-      expect(
-        policy.retryOn(
-          new NotFoundException(HttpExceptionFactory.createFromResponse(404) as any, ''),
-        ),
-      ).toBe(true);
+      expect(policy.retryOn(new NotFoundException(Response.create(null, 404, null), ''))).toBe(
+        true,
+      );
     });
 
     it('should pass the error to shouldRetry', () => {

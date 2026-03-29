@@ -5,14 +5,15 @@ import { Response } from '../../src/models/response';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { RetryPolicies } from '../../src/resilience/retry.policies';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
+import { HttpClientContract } from '../../src/contracts/http-client.contract';
 
 const makeRequest = () =>
   new RequestBuilder('https://api.example.com').setEndpoint('/test').build();
 
 const mockClient = (
-  impl: () => Promise<{ data: any; status: number; headers: Record<string, string> }>,
-) => ({
-  request: jest.fn(impl),
+  impl: () => Promise<{ data: unknown; status: number; headers: Record<string, string> }>,
+): HttpClientContract => ({
+  request: jest.fn(impl) as HttpClientContract['request'],
 });
 
 describe('HttpAdapterObserver', () => {

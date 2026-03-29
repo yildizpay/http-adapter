@@ -1,6 +1,7 @@
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { ResponseValidator } from '../../src/contracts/response-validator.contract';
+import { HttpBody } from '../../src/common/types/http.types';
 
 describe('RequestBuilder', () => {
   let builder: RequestBuilder;
@@ -82,7 +83,7 @@ describe('RequestBuilder', () => {
 
     it('should handle undefined body in build', () => {
       // Force body to be undefined to hit the branch
-      builder.setBody(undefined as any);
+      builder.setBody(undefined as unknown as HttpBody);
       const request = builder.build();
       expect(request.body).toBeNull();
     });

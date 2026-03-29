@@ -55,7 +55,7 @@ export class Request {
    * @param value - The value of the parameter.
    * @throws Error if the body is null (not initialized).
    */
-  public addParam(key: string, value: string | number | Record<string, any>) {
+  public addParam(key: string, value: string | number | HttpBody) {
     if (this.body == null) throw new Error('Body is not defined');
     this.body[key] = value;
   }
