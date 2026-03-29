@@ -63,7 +63,7 @@ type HttpExceptionConstructor<T> = new (
  * Covers all standard 4xx client errors (400–451) and 5xx server errors (500–511).
  * Unmapped status codes fall through to the base {@link HttpException}.
  */
-const HttpStatusExceptionMap: Record<number, HttpExceptionConstructor<any>> = {
+const HttpStatusExceptionMap: Record<number, HttpExceptionConstructor<unknown>> = {
   400: BadRequestException,
   401: UnauthorizedException,
   402: PaymentRequiredException,
@@ -153,7 +153,12 @@ export class HttpExceptionFactory {
     const ExceptionClass = HttpStatusExceptionMap[status];
 
     if (ExceptionClass) {
-      return new ExceptionClass(response, message, code, cause);
+      return new ExceptionClass(
+        response as Response<unknown>,
+        message,
+        code,
+        cause,
+      ) as HttpException<T>;
     }
 
     return new HttpException(
