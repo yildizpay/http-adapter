@@ -3,6 +3,7 @@ import { HttpBody } from '../common/types/http.types';
 import { RequestOptions } from './request-options';
 import { ResponseValidator } from '../contracts/response-validator.contract';
 import { CorrelationIdConfig } from './correlation-id-config';
+import { RequestOverrides } from './request-overrides';
 
 /**
  * Represents an immutable HTTP request.
@@ -43,6 +44,7 @@ export class Request {
     public readonly options: RequestOptions = new RequestOptions(),
     public readonly validators: ResponseValidator[] = [],
     public readonly correlationIdConfig?: CorrelationIdConfig,
+    public readonly overrides?: RequestOverrides,
   ) {
     this.systemCorrelationId = crypto.randomUUID();
     this.timestamp = new Date();

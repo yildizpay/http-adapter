@@ -1,6 +1,6 @@
 {
   "name": "@yildizpay/http-adapter",
-  "version": "3.8.1",
+  "version": "3.9.0",
   "description": "Enterprise-grade, zero-dependency HTTP adapter for Node.js with pluggable client abstractions.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

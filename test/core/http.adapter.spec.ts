@@ -9,6 +9,7 @@ import { defaultHttpClient } from '../../src/core/default-http-client';
 import { HttpClientContract } from '../../src/contracts/http-client.contract';
 import { ValidationException } from '../../src/exceptions/validation.exception';
 import { RetryPolicies } from '../../src/resilience/retry.policies';
+import { TimeoutException } from '../../src/exceptions/network.exceptions';
 
 jest.mock('../../src/core/default-http-client', () => ({
   defaultHttpClient: {
@@ -595,6 +596,167 @@ describe('HttpAdapter', () => {
 
       const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
       expect(sentHeaders['x-correlation-id']).toBe(req.systemCorrelationId);
+    });
+  });
+
+  describe('request-level overrides', () => {
+    describe('retry policy', () => {
+      it('should use request-level retry policy instead of adapter global', async () => {
+        mockHttpClient.request
+          .mockRejectedValueOnce(new TimeoutException())
+          .mockResolvedValueOnce({ data: {}, status: 200, headers: {} });
+
+        const requestPolicy = RetryPolicies.fixedDelay(2, 0);
+        const req = new RequestBuilder('https://api.example.com')
+          .setEndpoint('/test')
+          .withRetryPolicy(requestPolicy)
+          .build();
+
+        adapter = HttpAdapter.create([], undefined, mockHttpClient);
+        await adapter.send(req);
+
+        expect(mockHttpClient.request).toHaveBeenCalledTimes(2);
+      });
+
+      it('should disable retries when withoutRetry is set, even if adapter has a global policy', async () => {
+        mockHttpClient.request.mockRejectedValue(new TimeoutException());
+
+        const req = new RequestBuilder('https://api.example.com')
+          .setEndpoint('/test')
+          .withoutRetry()
+          .build();
+
+        adapter = HttpAdapter.create([], RetryPolicies.fixedDelay(3, 0), mockHttpClient);
+
+        await expect(adapter.send(req)).rejects.toThrow();
+        expect(mockHttpClient.request).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('circuit breaker', () => {
+      it('should use request-level circuit breaker instead of adapter global', async () => {
+        const requestCb = new CircuitBreaker({ failureThreshold: 1 });
+        const adapterCb = new CircuitBreaker({ failureThreshold: 10 });
+
+        mockHttpClient.request.mockRejectedValue(new TimeoutException());
+
+        const req = new RequestBuilder('https://api.example.com')
+          .setEndpoint('/test')
+          .withCircuitBreaker(requestCb)
+          .build();
+
+        adapter = HttpAdapter.create([], undefined, mockHttpClient, adapterCb);
+
+        await expect(adapter.send(req)).rejects.toThrow();
+        expect(requestCb.getState()).toBe('OPEN');
+      });
+
+      it('should bypass circuit breaker when withoutCircuitBreaker is set', async () => {
+        const adapterCb = new CircuitBreaker({ failureThreshold: 1 });
+
+        // Open the adapter-level circuit breaker
+        mockHttpClient.request.mockRejectedValue(new TimeoutException());
+        const warmUpReq = new RequestBuilder('https://api.example.com')
+          .setEndpoint('/test')
+          .build();
+        adapter = HttpAdapter.create([], undefined, mockHttpClient, adapterCb);
+        await expect(adapter.send(warmUpReq)).rejects.toThrow();
+
+        mockHttpClient.request.mockResolvedValue({ data: {}, status: 200, headers: {} });
+
+        // This request should bypass the open circuit breaker
+        const req = new RequestBuilder('https://api.example.com')
+          .setEndpoint('/test')
+          .withoutCircuitBreaker()
+          .build();
+
+        const response = await adapter.send(req);
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe('interceptor exclusion', () => {
+      it('should skip interceptor matching the excluded class', async () => {
+        const called: string[] = [];
+
+        class LoggingInterceptor implements HttpInterceptor {
+          async onRequest(req: Request) {
+            called.push('logging');
+            return req;
+          }
+        }
+
+        const authInterceptor: HttpInterceptor = {
+          onRequest: async (req) => {
+            called.push('auth');
+            return req;
+          },
+        };
+
+        const loggingInterceptor = new LoggingInterceptor();
+        adapter = HttpAdapter.create(
+          [loggingInterceptor, authInterceptor],
+          undefined,
+          mockHttpClient,
+        );
+
+        const req = new RequestBuilder('https://api.example.com')
+          .setEndpoint('/test')
+          .withoutInterceptor(LoggingInterceptor)
+          .build();
+
+        await adapter.send(req);
+
+        expect(called).toEqual(['auth']);
+        expect(called).not.toContain('logging');
+      });
+
+      it('should skip only the specified instance when using withoutInterceptorInstance', async () => {
+        const called: string[] = [];
+
+        const i1: HttpInterceptor = {
+          onRequest: async (req) => {
+            called.push('i1');
+            return req;
+          },
+        };
+        const i2: HttpInterceptor = {
+          onRequest: async (req) => {
+            called.push('i2');
+            return req;
+          },
+        };
+
+        adapter = HttpAdapter.create([i1, i2], undefined, mockHttpClient);
+
+        const req = new RequestBuilder('https://api.example.com')
+          .setEndpoint('/test')
+          .withoutInterceptorInstance(i1)
+          .build();
+
+        await adapter.send(req);
+
+        expect(called).toEqual(['i2']);
+        expect(called).not.toContain('i1');
+      });
+
+      it('should not re-filter interceptors when no exclusions are set', async () => {
+        const called: string[] = [];
+
+        const interceptor: HttpInterceptor = {
+          onRequest: async (req) => {
+            called.push('interceptor');
+            return req;
+          },
+        };
+
+        adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+        const req = new RequestBuilder('https://api.example.com').setEndpoint('/test').build();
+
+        await adapter.send(req);
+
+        expect(called).toEqual(['interceptor']);
+      });
     });
   });
 });

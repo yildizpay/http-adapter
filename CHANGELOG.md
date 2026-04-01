@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.0] - 2026-04-01
+
+### Added
+
+- **Request-level retry policy override**: `RequestBuilder.withRetryPolicy(policy)` overrides the adapter's global retry policy for a single request. `RequestBuilder.withoutRetry()` disables retries entirely for that request, regardless of any global policy.
+- **Request-level circuit breaker override**: `RequestBuilder.withCircuitBreaker(cb)` replaces the adapter's global circuit breaker instance for a single request. `RequestBuilder.withoutCircuitBreaker()` bypasses the circuit breaker entirely for that request.
+- **Request-level interceptor exclusion by class**: `RequestBuilder.withoutInterceptor(...classes)` skips all registered instances of the provided interceptor classes for a single request. If the same class is registered multiple times, all instances are excluded.
+- **Request-level interceptor exclusion by instance**: `RequestBuilder.withoutInterceptorInstance(...instances)` skips only the exact provided interceptor instances for a single request — useful when multiple instances of the same class are registered and only a specific one should be excluded.
+- **`RequestOverrides` type**: A new exported type carrying the per-request override configuration (`retryPolicy`, `circuitBreaker`, `excludedInterceptors`, `excludedInterceptorInstances`). Available on `request.overrides`.
+
+### Changed
+
+- `HttpAdapter` now stores the raw interceptor list alongside the pre-filtered groups. When a request carries no interceptor exclusions, the pre-filtered groups are used directly (no runtime overhead). When exclusions are present, the effective interceptor list is computed from the raw list for that request only.
+
 ## [3.8.1] - 2026-03-27
 
 ### Fixed

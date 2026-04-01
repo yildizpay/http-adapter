@@ -574,6 +574,62 @@ const request2 = new RequestBuilder('https://api.example.com')
 
 **Header resolution sırası:** per-request header → adapter header → `'x-correlation-id'`.
 
+## Request Bazlı Override
+
+Adapter'ın global konfigürasyonu (retry policy, circuit breaker, interceptorlar) varsayılan olarak tüm isteklere uygulanır. Tek bir isteğin farklı davranması gerektiğinde `RequestBuilder`, global config'i tamamen geçersiz kılan per-request override'lar sunar.
+
+### Retry Policy
+
+```typescript
+import { RetryPolicies } from '@yildizpay/http-adapter';
+
+// Override: bu istek için farklı bir policy kullan
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withRetryPolicy(RetryPolicies.decorrelatedJitter(5))
+  .build();
+
+// Disable: global policy'den bağımsız olarak bu istek için retry'ı kapat
+const sensitiveRequest = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/refunds')
+  .withoutRetry()
+  .build();
+```
+
+### Circuit Breaker
+
+```typescript
+// Override: bu istek için ayrı bir circuit breaker kullan
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withCircuitBreaker(new CircuitBreaker({ failureThreshold: 3 }))
+  .build();
+
+// Bypass: bu istek için circuit breaker'ı tamamen atla
+const probeRequest = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/health')
+  .withoutCircuitBreaker()
+  .build();
+```
+
+### Interceptor Hariç Tutma
+
+```typescript
+// Bir class'ın tüm instance'larını hariç tut (örn. hassas isteklerde loglama)
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withoutInterceptor(LoggingInterceptor)
+  .build();
+
+// Belirli bir instance'ı hariç tut (aynı class'tan birden fazla instance varsa)
+const loggingInterceptor = new LoggingInterceptor('payments');
+
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withoutInterceptorInstance(loggingInterceptor)
+  .build();
+```
+
 ## Katkıda Bulunma
 
 Katkılarınızı her zaman bekliyoruz! Lütfen bir Pull Request göndermekten çekinmeyin.
