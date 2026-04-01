@@ -12,6 +12,7 @@ export * from './models/response';
 export * from './models/request-options';
 export * from './models/request-context';
 export * from './models/correlation-id-config';
+export * from './models/request-overrides';
 
 // Contracts
 export * from './contracts/http-interceptor.contract';

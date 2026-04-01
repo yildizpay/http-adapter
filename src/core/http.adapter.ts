@@ -22,6 +22,14 @@ import {
   DEFAULT_CORRELATION_ID_HEADER,
 } from '../models/correlation-id-config';
 import { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import { RequestOverrides } from '../models/request-overrides';
+
+interface InterceptorGroups {
+  request: HttpRequestInterceptor[];
+  response: HttpResponseInterceptor[];
+  validatedResponse: HttpValidatedResponseInterceptor[];
+  error: HttpErrorInterceptor[];
+}
 
 /**
  * The core HTTP adapter that orchestrates outbound requests.
@@ -35,10 +43,8 @@ import { HttpAdapterObserver } from '../observability/http-adapter-observer';
  * It is designed to be immutable in its configuration but can handle concurrent requests.
  */
 export class HttpAdapter {
-  private readonly requestInterceptors: HttpRequestInterceptor[];
-  private readonly responseInterceptors: HttpResponseInterceptor[];
-  private readonly validatedResponseInterceptors: HttpValidatedResponseInterceptor[];
-  private readonly errorInterceptors: HttpErrorInterceptor[];
+  private readonly interceptors: HttpInterceptor[];
+  private readonly defaultInterceptorGroups: InterceptorGroups;
 
   /**
    * Initializes a new instance of the HttpAdapter class.
@@ -58,18 +64,8 @@ export class HttpAdapter {
     private readonly correlationIdConfig?: CorrelationIdConfig,
     private readonly observer?: HttpAdapterObserver,
   ) {
-    this.requestInterceptors = interceptors.filter(
-      (i): i is HttpRequestInterceptor => typeof i.onRequest === 'function',
-    );
-    this.responseInterceptors = interceptors.filter(
-      (i): i is HttpResponseInterceptor => typeof i.onResponse === 'function',
-    );
-    this.validatedResponseInterceptors = interceptors.filter(
-      (i): i is HttpValidatedResponseInterceptor => typeof i.onResponseValidated === 'function',
-    );
-    this.errorInterceptors = interceptors.filter(
-      (i): i is HttpErrorInterceptor => typeof i.onError === 'function',
-    );
+    this.interceptors = interceptors;
+    this.defaultInterceptorGroups = this.buildInterceptorGroups(interceptors);
   }
 
   /**
@@ -132,18 +128,30 @@ export class HttpAdapter {
    */
   public async send<T = unknown>(request: Request): Promise<Response<T>> {
     const startTime = Date.now();
+    const overrides = request.overrides;
+
+    const effectiveRetryPolicy =
+      overrides && 'retryPolicy' in overrides ? overrides.retryPolicy : this.retryPolicy;
+
+    const effectiveCircuitBreaker =
+      overrides && 'circuitBreaker' in overrides ? overrides.circuitBreaker : this.circuitBreaker;
+
+    const interceptorGroups =
+      overrides?.excludedInterceptors?.length || overrides?.excludedInterceptorInstances?.length
+        ? this.buildInterceptorGroups(this.filterInterceptors(overrides))
+        : this.defaultInterceptorGroups;
 
     const executePipeline = () => {
-      if (!this.retryPolicy) {
-        return this.dispatch<T>(request);
+      if (!effectiveRetryPolicy) {
+        return this.dispatch<T>(request, interceptorGroups);
       }
-      const executor = new RetryExecutor(this.retryPolicy, this.observer);
-      return executor.execute(() => this.dispatch<T>(request));
+      const executor = new RetryExecutor(effectiveRetryPolicy, this.observer);
+      return executor.execute(() => this.dispatch<T>(request, interceptorGroups));
     };
 
     try {
-      const response = await (this.circuitBreaker
-        ? this.circuitBreaker.execute(executePipeline)
+      const response = await (effectiveCircuitBreaker
+        ? effectiveCircuitBreaker.execute(executePipeline)
         : executePipeline());
 
       this.observer?.onRequestSuccess?.(response, Date.now() - startTime);
@@ -161,8 +169,11 @@ export class HttpAdapter {
    *
    * @private
    */
-  private async dispatch<T = unknown>(request: Request): Promise<Response<T>> {
-    const processedRequest = await this.runRequestInterceptors(request);
+  private async dispatch<T = unknown>(
+    request: Request,
+    interceptorGroups: InterceptorGroups,
+  ): Promise<Response<T>> {
+    const processedRequest = await this.runRequestInterceptors(request, interceptorGroups.request);
 
     let requestContext: RequestContext | undefined;
 
@@ -181,16 +192,60 @@ export class HttpAdapter {
       this.observer?.onRequestStart?.(processedRequest);
 
       const response = await this.executeHttpCall<T>(processedRequest, url, requestContext);
-      const interceptedResponse = await this.runResponseInterceptors<T>(response);
+      const interceptedResponse = await this.runResponseInterceptors<T>(
+        response,
+        interceptorGroups.response,
+      );
       await this.runValidators<T>(interceptedResponse, request);
-      return await this.runPostValidationInterceptors<T>(interceptedResponse);
+      return await this.runPostValidationInterceptors<T>(
+        interceptedResponse,
+        interceptorGroups.validatedResponse,
+      );
     } catch (error) {
       const propagatedError = await this.runErrorInterceptors(
         ErrorConverter.toAdapterException(error, requestContext),
         processedRequest,
+        interceptorGroups.error,
       );
       throw propagatedError;
     }
+  }
+
+  /**
+   * Builds pre-filtered interceptor groups from a raw interceptor list.
+   *
+   * @private
+   */
+  private buildInterceptorGroups(interceptors: HttpInterceptor[]): InterceptorGroups {
+    return {
+      request: interceptors.filter(
+        (i): i is HttpRequestInterceptor => typeof i.onRequest === 'function',
+      ),
+      response: interceptors.filter(
+        (i): i is HttpResponseInterceptor => typeof i.onResponse === 'function',
+      ),
+      validatedResponse: interceptors.filter(
+        (i): i is HttpValidatedResponseInterceptor => typeof i.onResponseValidated === 'function',
+      ),
+      error: interceptors.filter((i): i is HttpErrorInterceptor => typeof i.onError === 'function'),
+    };
+  }
+
+  /**
+   * Filters the raw interceptor list based on request-level exclusions.
+   *
+   * @private
+   */
+  private filterInterceptors(overrides: RequestOverrides): HttpInterceptor[] {
+    return this.interceptors.filter((interceptor) => {
+      if (overrides.excludedInterceptors?.some((cls) => interceptor instanceof cls)) {
+        return false;
+      }
+      if (overrides.excludedInterceptorInstances?.includes(interceptor)) {
+        return false;
+      }
+      return true;
+    });
   }
 
   /**
@@ -198,9 +253,12 @@ export class HttpAdapter {
    *
    * @private
    */
-  private async runRequestInterceptors(request: Request): Promise<Request> {
+  private async runRequestInterceptors(
+    request: Request,
+    interceptors: HttpRequestInterceptor[],
+  ): Promise<Request> {
     let processedRequest = request;
-    for (const interceptor of this.requestInterceptors) {
+    for (const interceptor of interceptors) {
       processedRequest = await interceptor.onRequest(processedRequest);
     }
     return processedRequest;
@@ -252,9 +310,12 @@ export class HttpAdapter {
    *
    * @private
    */
-  private async runResponseInterceptors<T>(response: Response<T>): Promise<Response<T>> {
+  private async runResponseInterceptors<T>(
+    response: Response<T>,
+    interceptors: HttpResponseInterceptor[],
+  ): Promise<Response<T>> {
     let result = response;
-    for (const interceptor of this.responseInterceptors) {
+    for (const interceptor of interceptors) {
       result = (await interceptor.onResponse(result)) as Response<T>;
     }
     return result;
@@ -282,9 +343,12 @@ export class HttpAdapter {
    *
    * @private
    */
-  private async runPostValidationInterceptors<T>(response: Response<T>): Promise<Response<T>> {
+  private async runPostValidationInterceptors<T>(
+    response: Response<T>,
+    interceptors: HttpValidatedResponseInterceptor[],
+  ): Promise<Response<T>> {
     let result = response;
-    for (const interceptor of this.validatedResponseInterceptors) {
+    for (const interceptor of interceptors) {
       result = (await interceptor.onResponseValidated(result)) as Response<T>;
     }
     return result;
@@ -298,9 +362,10 @@ export class HttpAdapter {
   private async runErrorInterceptors(
     error: BaseAdapterException,
     request: Request,
+    interceptors: HttpErrorInterceptor[],
   ): Promise<BaseAdapterException> {
     let propagatedError = error;
-    for (const interceptor of this.errorInterceptors) {
+    for (const interceptor of interceptors) {
       propagatedError = await interceptor.onError(propagatedError, request);
     }
     return propagatedError;

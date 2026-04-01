@@ -2,6 +2,8 @@ import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { ResponseValidator } from '../../src/contracts/response-validator.contract';
 import { HttpBody } from '../../src/common/types/http.types';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
+import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
 
 describe('RequestBuilder', () => {
   let builder: RequestBuilder;
@@ -249,6 +251,111 @@ describe('RequestBuilder', () => {
     it('should be undefined when neither withCorrelationId nor withoutCorrelationId is called', () => {
       const request = builder.build();
       expect(request.correlationIdConfig).toBeUndefined();
+    });
+  });
+
+  describe('Request-level Overrides', () => {
+    describe('withRetryPolicy', () => {
+      it('should set retryPolicy override on the request', () => {
+        const policy = RetryPolicies.exponential(3);
+        const request = builder.withRetryPolicy(policy).build();
+        expect(request.overrides?.retryPolicy).toBe(policy);
+      });
+
+      it('should return the builder instance for chaining', () => {
+        expect(builder.withRetryPolicy(RetryPolicies.exponential(3))).toBe(builder);
+      });
+    });
+
+    describe('withoutRetry', () => {
+      it('should set retryPolicy override to null', () => {
+        const request = builder.withoutRetry().build();
+        expect(request.overrides?.retryPolicy).toBeNull();
+      });
+
+      it('should return the builder instance for chaining', () => {
+        expect(builder.withoutRetry()).toBe(builder);
+      });
+    });
+
+    describe('withCircuitBreaker', () => {
+      it('should set circuitBreaker override on the request', () => {
+        const cb = new CircuitBreaker({ failureThreshold: 3 });
+        const request = builder.withCircuitBreaker(cb).build();
+        expect(request.overrides?.circuitBreaker).toBe(cb);
+      });
+
+      it('should return the builder instance for chaining', () => {
+        expect(builder.withCircuitBreaker(new CircuitBreaker({ failureThreshold: 3 }))).toBe(
+          builder,
+        );
+      });
+    });
+
+    describe('withoutCircuitBreaker', () => {
+      it('should set circuitBreaker override to null', () => {
+        const request = builder.withoutCircuitBreaker().build();
+        expect(request.overrides?.circuitBreaker).toBeNull();
+      });
+
+      it('should return the builder instance for chaining', () => {
+        expect(builder.withoutCircuitBreaker()).toBe(builder);
+      });
+    });
+
+    describe('withoutInterceptor', () => {
+      it('should add interceptor classes to excludedInterceptors', () => {
+        class FooInterceptor {}
+        class BarInterceptor {}
+        const request = builder.withoutInterceptor(FooInterceptor, BarInterceptor).build();
+        expect(request.overrides?.excludedInterceptors).toEqual([FooInterceptor, BarInterceptor]);
+      });
+
+      it('should accumulate classes across multiple calls', () => {
+        class FooInterceptor {}
+        class BarInterceptor {}
+        const request = builder
+          .withoutInterceptor(FooInterceptor)
+          .withoutInterceptor(BarInterceptor)
+          .build();
+        expect(request.overrides?.excludedInterceptors).toEqual([FooInterceptor, BarInterceptor]);
+      });
+
+      it('should return the builder instance for chaining', () => {
+        class FooInterceptor {}
+        expect(builder.withoutInterceptor(FooInterceptor)).toBe(builder);
+      });
+    });
+
+    describe('withoutInterceptorInstance', () => {
+      it('should add interceptor instances to excludedInterceptorInstances', () => {
+        const instance = { onRequest: async (r: unknown) => r };
+        const request = builder.withoutInterceptorInstance(instance).build();
+        expect(request.overrides?.excludedInterceptorInstances).toContain(instance);
+      });
+
+      it('should accumulate instances across multiple calls', () => {
+        const i1 = { onRequest: async (r: unknown) => r };
+        const i2 = { onResponse: async (r: unknown) => r };
+        const request = builder
+          .withoutInterceptorInstance(i1)
+          .withoutInterceptorInstance(i2)
+          .build();
+        expect(request.overrides?.excludedInterceptorInstances).toEqual([i1, i2]);
+      });
+
+      it('should return the builder instance for chaining', () => {
+        expect(builder.withoutInterceptorInstance({ onRequest: async (r: unknown) => r })).toBe(
+          builder,
+        );
+      });
+    });
+
+    describe('overrides field on request', () => {
+      it('should be undefined when no override methods are called', () => {
+        const request = builder.build();
+        expect(request.overrides).toBeUndefined();
+      });
     });
   });
 });

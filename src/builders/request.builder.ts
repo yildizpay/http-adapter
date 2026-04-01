@@ -4,6 +4,9 @@ import { Request } from '../models/request';
 import { RequestOptions } from '../models/request-options';
 import { ResponseValidator } from '../contracts/response-validator.contract';
 import { CorrelationIdConfig } from '../models/correlation-id-config';
+import { InterceptorClass, RequestOverrides } from '../models/request-overrides';
+import { RetryPolicy } from '../contracts/retry-policy.contract';
+import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 
 /**
  * A fluent builder for constructing HTTP requests.
@@ -25,6 +28,7 @@ export class RequestBuilder {
   private options: RequestOptions;
   private readonly validators: ResponseValidator[] = [];
   private correlationIdConfig: CorrelationIdConfig | undefined;
+  private readonly overrides: RequestOverrides = {};
 
   /**
    * Initializes a new instance of the RequestBuilder class.
@@ -333,6 +337,82 @@ export class RequestBuilder {
   }
 
   /**
+   * Overrides the adapter's global retry policy for this request.
+   *
+   * @param policy - The retry policy to use for this request.
+   * @returns The current instance of RequestBuilder for method chaining.
+   */
+  public withRetryPolicy(policy: RetryPolicy): this {
+    this.overrides.retryPolicy = policy;
+    return this;
+  }
+
+  /**
+   * Disables retries for this request, regardless of the adapter's global retry policy.
+   *
+   * @returns The current instance of RequestBuilder for method chaining.
+   */
+  public withoutRetry(): this {
+    this.overrides.retryPolicy = null;
+    return this;
+  }
+
+  /**
+   * Overrides the adapter's global circuit breaker for this request.
+   *
+   * @param circuitBreaker - The circuit breaker instance to use for this request.
+   * @returns The current instance of RequestBuilder for method chaining.
+   */
+  public withCircuitBreaker(circuitBreaker: CircuitBreaker): this {
+    this.overrides.circuitBreaker = circuitBreaker;
+    return this;
+  }
+
+  /**
+   * Bypasses the adapter's global circuit breaker for this request.
+   *
+   * @returns The current instance of RequestBuilder for method chaining.
+   */
+  public withoutCircuitBreaker(): this {
+    this.overrides.circuitBreaker = null;
+    return this;
+  }
+
+  /**
+   * Excludes one or more interceptor classes from running for this request.
+   * All instances of each provided class will be skipped.
+   *
+   * If the same class is registered multiple times under different instances,
+   * all of them will be excluded. Use {@link withoutInterceptorInstance} to
+   * target a specific instance.
+   *
+   * @param classes - One or more interceptor classes to exclude.
+   * @returns The current instance of RequestBuilder for method chaining.
+   */
+  public withoutInterceptor(...classes: InterceptorClass[]): this {
+    this.overrides.excludedInterceptors = [
+      ...(this.overrides.excludedInterceptors ?? []),
+      ...classes,
+    ];
+    return this;
+  }
+
+  /**
+   * Excludes one or more specific interceptor instances from running for this request.
+   * Only the exact provided instances will be skipped.
+   *
+   * @param instances - One or more interceptor instances to exclude.
+   * @returns The current instance of RequestBuilder for method chaining.
+   */
+  public withoutInterceptorInstance(...instances: object[]): this {
+    this.overrides.excludedInterceptorInstances = [
+      ...(this.overrides.excludedInterceptorInstances ?? []),
+      ...instances,
+    ];
+    return this;
+  }
+
+  /**
    * Builds and returns a new Request object based on the current configuration.
    *
    * @returns A constructed Request object ready to be executed.
@@ -348,6 +428,7 @@ export class RequestBuilder {
       this.options,
       this.validators,
       this.correlationIdConfig,
+      Object.keys(this.overrides).length > 0 ? this.overrides : undefined,
     );
   }
 }

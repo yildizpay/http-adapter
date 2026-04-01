@@ -574,6 +574,62 @@ const request2 = new RequestBuilder('https://api.example.com')
 
 **Header resolution order:** per-request header → adapter header → `'x-correlation-id'`.
 
+## Request-Level Overrides
+
+The adapter's global configuration (retry policy, circuit breaker, interceptors) applies to every request by default. For cases where a single request needs different behaviour, `RequestBuilder` exposes per-request overrides that take full precedence over the global config.
+
+### Retry Policy
+
+```typescript
+import { RetryPolicies } from '@yildizpay/http-adapter';
+
+// Override: use a different policy for this request
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withRetryPolicy(RetryPolicies.decorrelatedJitter(5))
+  .build();
+
+// Disable: no retries for this request, regardless of global policy
+const sensitiveRequest = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/refunds')
+  .withoutRetry()
+  .build();
+```
+
+### Circuit Breaker
+
+```typescript
+// Override: use a dedicated circuit breaker for this request
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withCircuitBreaker(new CircuitBreaker({ failureThreshold: 3 }))
+  .build();
+
+// Bypass: skip the circuit breaker entirely for this request
+const probeRequest = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/health')
+  .withoutCircuitBreaker()
+  .build();
+```
+
+### Interceptor Exclusion
+
+```typescript
+// Exclude all instances of a class (e.g. skip logging for sensitive requests)
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withoutInterceptor(LoggingInterceptor)
+  .build();
+
+// Exclude a specific instance (when multiple instances of the same class are registered)
+const loggingInterceptor = new LoggingInterceptor('payments');
+
+const request = new RequestBuilder('https://api.example.com')
+  .setEndpoint('/v1/payments')
+  .withoutInterceptorInstance(loggingInterceptor)
+  .build();
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
