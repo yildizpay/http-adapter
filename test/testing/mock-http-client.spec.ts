@@ -8,7 +8,9 @@ const makeConfig = (overrides = {}) => ({
   ...overrides,
 });
 
-const makeResponse = (data: unknown = { id: 1 }, status = 200) => ({
+const DEFAULT_RESPONSE_DATA = { id: 1 };
+
+const makeResponse = (data: unknown = DEFAULT_RESPONSE_DATA, status = 200) => ({
   data,
   status,
   headers: {} as Record<string, string>,
