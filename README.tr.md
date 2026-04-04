@@ -630,6 +630,194 @@ const request = new RequestBuilder('https://api.example.com')
   .build();
 ```
 
+## Test Araçları
+
+`@yildizpay/http-adapter`, production bundle'ını şişirmeden kullanabileceğiniz hazır test double'ları, spy'lar ve noop yardımcıları içeren ayrı bir `testing` sub-path'i ile gelir:
+
+```typescript
+import {
+  MockHttpAdapter,
+  MockHttpClient,
+  NoopInterceptor,
+  SpyInterceptor,
+  SpyObserver,
+} from '@yildizpay/http-adapter/testing';
+```
+
+### `MockHttpAdapter`
+
+`HttpAdapterContract` interface'ini implemente eden, gerçek HTTP çağrısı yapmadan response'ları kontrol etmenize olanak tanıyan tam özellikli bir bellek içi test double'ı.
+
+#### Response Yapılandırma
+
+```typescript
+const adapter = new MockHttpAdapter();
+
+// Her çağrı için aynı response
+adapter.mockResolvedValue({ STATUS: 'SUCCESS', ORDER_ID: '123' });
+
+// Her çağrı için aynı hata
+adapter.mockRejectedValue(new ServiceUnavailableException(...));
+
+// FIFO sırasıyla tüketilen tek seferlik response'lar; kuyruk bitince fallback'e düşer
+adapter
+  .mockResolvedOnce({ STATUS: 'PENDING' })
+  .mockResolvedOnce({ STATUS: 'SUCCESS' })
+  .mockResolvedValue({ STATUS: 'UNKNOWN' });   // fallback
+
+// Özel factory — tam Request nesnesini alır
+adapter.mockImplementation((request) => ({
+  STATUS: request.body?.type === 'REFUND' ? 'REFUNDED' : 'SUCCESS',
+}));
+```
+
+#### Endpoint Bazlı Mocking
+
+`onEndpoint()` ile response'ları ve assertion'ları tek bir path'e kilitleyebilirsiniz. Endpoint response'ları global response'lardan önceliklidir.
+
+```typescript
+adapter.onEndpoint('/api/payments').mockResolvedValue({ STATUS: 'SUCCESS' });
+adapter.onEndpoint('/api/refunds').mockRejectedValue(new NotFoundException(...));
+
+// Endpoint başına tek seferlik kuyruk
+adapter.onEndpoint('/api/payments')
+  .mockResolvedOnce({ STATUS: 'PENDING' })
+  .mockResolvedValue({ STATUS: 'SUCCESS' });
+```
+
+#### Assertion'lar
+
+```typescript
+// Test edilen kod çalıştıktan sonra:
+adapter.assertCalledTimes(2);
+adapter.assertCalledWith('/api/payments', { method: HttpMethod.POST });
+adapter.assertCalledWithBody(0, { AMOUNT: '100', CURRENCY: 'TRY' });
+adapter.assertNthCalledWith(1, '/api/payments');
+adapter.assertLastCalledWith('/api/refunds');
+adapter.assertCallOrder('/api/payments', '/api/refunds');
+adapter.assertNotCalled();
+
+// Kısayol getter'lar
+adapter.callCount;      // number
+adapter.firstCall;      // Request | undefined
+adapter.lastCall;       // Request | undefined
+adapter.wasCalled();    // boolean
+adapter.wasNotCalled(); // boolean
+```
+
+Endpoint scope'ları da aynı assertion API'sini kendi path'leriyle sınırlı olarak sunar:
+
+```typescript
+const scope = adapter.onEndpoint('/api/payments');
+scope.assertCalledTimes(1);
+scope.assertCalledWith({ body: { MERCHANT_ID: 'M001' } });
+scope.wasCalled();
+```
+
+#### `RequestMatcher` — Kısmi Request Eşleştirme
+
+Tüm `assertCalledWith` varyantları, `method`, `body`, `headers` ve `queryParams` üzerinde derin kısmi eşleştirme için opsiyonel bir `RequestMatcher` kabul eder. Yalnızca belirttiğiniz alanlar kontrol edilir; gerçek request'teki fazladan alanlar göz ardı edilir.
+
+```typescript
+adapter.assertCalledWith('/api/payments', {
+  method: HttpMethod.POST,
+  body: { AMOUNT: '100' },              // gerçek body'deki fazladan key'ler göz ardı edilir
+  headers: { 'x-merchant-id': 'M001' },
+});
+```
+
+Body eşleştirmesi derin kısmi eşitlik kullanır — iç içe nesneler kısmen eşleştirilir, `NaN` `Object.is` ile doğru şekilde ele alınır, `Date` instance'ları değer olarak karşılaştırılır ve array'ler düz nesnelerle karıştırılmaz.
+
+#### Strict Mode
+
+Strict mode, global bir default yapılandırılmış olsa bile kayıt dışı bir endpoint'e çağrı yapıldığında anında hata fırlatır. Testlerde beklenmedik HTTP çağrılarını yakalamak için kullanışlıdır.
+
+```typescript
+const adapter = new MockHttpAdapter({ strict: true });
+adapter.onEndpoint('/api/payments').mockResolvedValue({ STATUS: 'SUCCESS' });
+
+// '/api/users' kayıtlı olmadığından anında hata fırlatır
+await adapter.send(request);
+```
+
+#### Reset
+
+`reset()`, mevcut `onEndpoint()` referanslarını geçersiz kılmadan tüm çağrıları, kuyruğu ve varsayılan davranışları temizler.
+
+```typescript
+beforeEach(() => adapter.reset());
+```
+
+---
+
+### `MockHttpClient`
+
+`HttpClientContract` transport katmanı için daha düşük seviyeli bir test double'ı. Tam adapter pipeline'ı yerine özel `HttpClient` wrapper'larını test ederken kullanılır. `MockHttpAdapter` ile aynı kuyruk API'sine ve assertion yardımcılarına sahiptir.
+
+```typescript
+const client = new MockHttpClient();
+client.mockResolvedValue({ data: { id: 1 }, status: 200, headers: {} });
+
+const result = await client.request(config);
+client.assertCalledTimes(1);
+client.assertCalledWith({ method: HttpMethod.POST });
+```
+
+---
+
+### Noop Yardımcılar
+
+Herhangi bir yan etki olmadan bir contract'ı karşılayan pass-through implementasyonlar. Bir hook sağlanması zorunlu olduğunda ancak davranışı test için önem taşımadığında kullanılır.
+
+| Sınıf | İmplemente Ettiği |
+|---|---|
+| `NoopInterceptor` | Tüm dört `HttpInterceptor` hook'u — her değeri değiştirmeden döndürür |
+| `NoopObserver` | Tüm `HttpAdapterObserver` hook'ları — boş metodlar |
+| `NoopCircuitBreakerObserver` | Tüm `CircuitBreakerObserver` hook'ları — boş metodlar |
+
+```typescript
+const adapter = HttpAdapter.builder()
+  .withInterceptor(new NoopInterceptor())
+  .withObserver(new NoopObserver())
+  .build();
+```
+
+---
+
+### Spy Yardımcılar
+
+Her çağrıyı kaydeder ve değerleri değiştirmeden iletir. Tam request pipeline'ını mock'lamadan bir hook'un çağrıldığını doğrulamanız gerektiğinde kullanın.
+
+```typescript
+const interceptorSpy = new SpyInterceptor();
+const observerSpy = new SpyObserver();
+
+const adapter = HttpAdapter.builder()
+  .withInterceptor(interceptorSpy)
+  .withObserver(observerSpy)
+  .build();
+
+await adapter.send(request);
+
+// SpyInterceptor
+expect(interceptorSpy.requestCalls).toHaveLength(1);
+expect(interceptorSpy.responseCalls).toHaveLength(1);
+expect(interceptorSpy.errorCalls).toHaveLength(0);
+
+// SpyObserver
+expect(observerSpy.requestStartCalls).toHaveLength(1);
+expect(observerSpy.successCalls[0].durationMs).toBeGreaterThan(0);
+
+// Testler arasında sıfırlama
+interceptorSpy.reset();
+observerSpy.reset();
+```
+
+| Spy | Kayıt Dizileri |
+|---|---|
+| `SpyInterceptor` | `requestCalls`, `responseCalls`, `responseValidatedCalls`, `errorCalls` |
+| `SpyObserver` | `requestStartCalls`, `successCalls`, `failureCalls`, `retryCalls` |
+
 ## Katkıda Bulunma
 
 Katkılarınızı her zaman bekliyoruz! Lütfen bir Pull Request göndermekten çekinmeyin.

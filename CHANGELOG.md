@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.10.0] - 2026-04-04
+
+### Added
+
+- **`MockHttpAdapter`**: A full-featured in-memory test double for `HttpAdapter` implementing `HttpAdapterContract`. Supports global and endpoint-specific response queues, one-time responses, custom implementation factories, call recording, strict mode, and a rich assertion API.
+  - `mockResolvedValue(data, status?)` / `mockResolvedOnce(data, status?)` — queue resolved responses globally or per-endpoint.
+  - `mockRejectedValue(error)` / `mockRejectedOnce(error)` — queue rejected responses.
+  - `mockImplementation(fn, status?)` / `mockImplementationOnce(fn, status?)` — provide a factory function invoked with the incoming `Request`.
+  - `onEndpoint(path)` — returns an `EndpointMockScope` that scopes all of the above to a specific endpoint path. Endpoint responses take priority over global ones.
+  - `callCount` / `firstCall` / `lastCall` — convenience getters on both `MockHttpAdapter` and `EndpointMockScope`.
+  - `wasCalled()` / `wasNotCalled()` — boolean helpers.
+  - `assertCalledTimes(n)` / `assertCalledWith(endpoint, matchers?)` / `assertCalledWithBody(index, partial)` / `assertNotCalled()` — assertion helpers that throw descriptive errors on failure.
+  - `assertNthCalledWith(n, endpoint, matchers?)` / `assertLastCalledWith(endpoint, matchers?)` — positional call assertions.
+  - `assertCallOrder(...endpoints)` — asserts that the given endpoints were called in the specified relative order (subsequence matching).
+  - `RequestMatcher` interface — partial matching on `method`, `body`, `headers`, and `queryParams`. Body matching uses deep partial equality that correctly handles `NaN`, `Date`, and `Array` vs plain-object distinctions.
+  - `MockHttpAdapterOptions.strict` — when `true`, calls to unregistered endpoints throw immediately, even when a global default is configured.
+  - `reset()` — clears all calls, queues, and default behaviors in-place, keeping existing `EndpointMockScope` references valid.
+- **`MockHttpClient`**: A low-level test double for the `HttpClientContract` transport layer (for testing custom client wrappers rather than full adapter pipelines). Mirrors the `MockHttpAdapter` queue API and exposes `getCalls`, `getCall`, `assertCalledTimes`, `assertCalledWith`, `assertNotCalled`, and `reset`.
+- **`HttpAdapterContract`**: A minimal interface (`send<T>(request): Promise<Response<T>>`) that both `HttpAdapter` and `MockHttpAdapter` implement, enabling typed dependency injection in consuming applications.
+- **`NoopInterceptor`**: A pass-through implementation of all four `HttpInterceptor` hooks (`onRequest`, `onResponse`, `onResponseValidated`, `onError`). Useful as a base class or safe stand-in when interceptor behavior is irrelevant to a test.
+- **`NoopObserver`**: A no-op implementation of all `HttpAdapterObserver` hooks. All methods are empty.
+- **`NoopCircuitBreakerObserver`**: A no-op implementation of all `CircuitBreakerObserver` hooks. All methods are empty.
+- **`SpyInterceptor`**: Records every interceptor hook invocation (`requestCalls`, `responseCalls`, `responseValidatedCalls`, `errorCalls`) while passing values through unchanged. Supports `reset()`.
+- **`SpyObserver`**: Records every observer hook invocation (`requestStartCalls`, `successCalls`, `failureCalls`, `retryCalls`) with full argument capture. Supports `reset()`.
+- **`@yildizpay/http-adapter/testing` sub-path export**: All testing utilities are now accessible via a dedicated sub-path (`import { MockHttpAdapter } from '@yildizpay/http-adapter/testing'`) so they are not bundled into production builds.
+
 ## [3.9.0] - 2026-04-01
 
 ### Added

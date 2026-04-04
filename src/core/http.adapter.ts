@@ -23,6 +23,7 @@ import {
 } from '../models/correlation-id-config';
 import { HttpAdapterObserver } from '../observability/http-adapter-observer';
 import { RequestOverrides } from '../models/request-overrides';
+import { HttpAdapterContract } from '../contracts/http-adapter.contract';
 
 interface InterceptorGroups {
   request: HttpRequestInterceptor[];
@@ -42,7 +43,7 @@ interface InterceptorGroups {
  *
  * It is designed to be immutable in its configuration but can handle concurrent requests.
  */
-export class HttpAdapter {
+export class HttpAdapter implements HttpAdapterContract {
   private readonly interceptors: HttpInterceptor[];
   private readonly defaultInterceptorGroups: InterceptorGroups;
 

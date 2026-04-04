@@ -630,6 +630,194 @@ const request = new RequestBuilder('https://api.example.com')
   .build();
 ```
 
+## Testing Utilities
+
+`@yildizpay/http-adapter` ships a dedicated `testing` sub-path that provides purpose-built test doubles, spies, and no-op helpers. Import them without polluting your production bundle:
+
+```typescript
+import {
+  MockHttpAdapter,
+  MockHttpClient,
+  NoopInterceptor,
+  SpyInterceptor,
+  SpyObserver,
+} from '@yildizpay/http-adapter/testing';
+```
+
+### `MockHttpAdapter`
+
+A full in-memory test double for `HttpAdapter` that implements `HttpAdapterContract`. Use it in unit tests to control responses without making real HTTP calls.
+
+#### Setting up responses
+
+```typescript
+const adapter = new MockHttpAdapter();
+
+// Always return this response
+adapter.mockResolvedValue({ STATUS: 'SUCCESS', ORDER_ID: '123' });
+
+// Always throw this error
+adapter.mockRejectedValue(new ServiceUnavailableException(...));
+
+// One-time responses consumed in FIFO order, falling back to the default
+adapter
+  .mockResolvedOnce({ STATUS: 'PENDING' })
+  .mockResolvedOnce({ STATUS: 'SUCCESS' })
+  .mockResolvedValue({ STATUS: 'UNKNOWN' });   // fallback
+
+// Custom factory — receives the full Request object
+adapter.mockImplementation((request) => ({
+  STATUS: request.body?.type === 'REFUND' ? 'REFUNDED' : 'SUCCESS',
+}));
+```
+
+#### Endpoint-specific mocking
+
+Use `onEndpoint()` to scope responses and assertions to a single path. Endpoint responses take priority over global ones.
+
+```typescript
+adapter.onEndpoint('/api/payments').mockResolvedValue({ STATUS: 'SUCCESS' });
+adapter.onEndpoint('/api/refunds').mockRejectedValue(new NotFoundException(...));
+
+// One-time queue per endpoint
+adapter.onEndpoint('/api/payments')
+  .mockResolvedOnce({ STATUS: 'PENDING' })
+  .mockResolvedValue({ STATUS: 'SUCCESS' });
+```
+
+#### Assertions
+
+```typescript
+// After running the code under test:
+adapter.assertCalledTimes(2);
+adapter.assertCalledWith('/api/payments', { method: HttpMethod.POST });
+adapter.assertCalledWithBody(0, { AMOUNT: '100', CURRENCY: 'TRY' });
+adapter.assertNthCalledWith(1, '/api/payments');
+adapter.assertLastCalledWith('/api/refunds');
+adapter.assertCallOrder('/api/payments', '/api/refunds');
+adapter.assertNotCalled();
+
+// Convenience getters
+adapter.callCount;     // number
+adapter.firstCall;     // Request | undefined
+adapter.lastCall;      // Request | undefined
+adapter.wasCalled();   // boolean
+adapter.wasNotCalled(); // boolean
+```
+
+Endpoint scopes expose the same assertion API, scoped to their path:
+
+```typescript
+const scope = adapter.onEndpoint('/api/payments');
+scope.assertCalledTimes(1);
+scope.assertCalledWith({ body: { MERCHANT_ID: 'M001' } });
+scope.wasCalled();
+```
+
+#### `RequestMatcher` — partial request matching
+
+All `assertCalledWith` variants accept an optional `RequestMatcher` for deep partial matching on `method`, `body`, `headers`, and `queryParams`. Only the fields you specify are checked; extra fields in the actual request are ignored.
+
+```typescript
+adapter.assertCalledWith('/api/payments', {
+  method: HttpMethod.POST,
+  body: { AMOUNT: '100' },             // extra keys in actual body are ignored
+  headers: { 'x-merchant-id': 'M001' },
+});
+```
+
+Body matching uses deep partial equality — nested objects are matched partially, `NaN` is handled correctly via `Object.is`, `Date` instances are compared by value, and arrays are never confused with plain objects.
+
+#### Strict mode
+
+Enable strict mode to fail fast whenever a call is made to an unregistered endpoint, even when a global default is configured. Useful for catching unexpected HTTP calls in tests.
+
+```typescript
+const adapter = new MockHttpAdapter({ strict: true });
+adapter.onEndpoint('/api/payments').mockResolvedValue({ STATUS: 'SUCCESS' });
+
+// This throws immediately — '/api/users' is not registered
+await adapter.send(request);
+```
+
+#### Reset
+
+`reset()` clears all calls, queues, and default behaviors without invalidating existing `onEndpoint()` references.
+
+```typescript
+beforeEach(() => adapter.reset());
+```
+
+---
+
+### `MockHttpClient`
+
+A lower-level test double for the `HttpClientContract` transport layer. Use it when testing custom `HttpClient` wrappers rather than full adapter pipelines. Exposes the same queue API and assertion helpers as `MockHttpAdapter`.
+
+```typescript
+const client = new MockHttpClient();
+client.mockResolvedValue({ data: { id: 1 }, status: 200, headers: {} });
+
+const result = await client.request(config);
+client.assertCalledTimes(1);
+client.assertCalledWith({ method: HttpMethod.POST });
+```
+
+---
+
+### Noop Helpers
+
+Pass-through implementations that satisfy a contract without any side effects. Useful when a hook must be provided but its behaviour is irrelevant to the test under execution.
+
+| Class | Implements |
+|---|---|
+| `NoopInterceptor` | All four `HttpInterceptor` hooks — returns each value unchanged |
+| `NoopObserver` | All `HttpAdapterObserver` hooks — empty methods |
+| `NoopCircuitBreakerObserver` | All `CircuitBreakerObserver` hooks — empty methods |
+
+```typescript
+const adapter = HttpAdapter.builder()
+  .withInterceptor(new NoopInterceptor())
+  .withObserver(new NoopObserver())
+  .build();
+```
+
+---
+
+### Spy Helpers
+
+Record every invocation and pass values through unchanged. Use them when you need to assert that a hook was called without mocking the full request pipeline.
+
+```typescript
+const interceptorSpy = new SpyInterceptor();
+const observerSpy = new SpyObserver();
+
+const adapter = HttpAdapter.builder()
+  .withInterceptor(interceptorSpy)
+  .withObserver(observerSpy)
+  .build();
+
+await adapter.send(request);
+
+// SpyInterceptor
+expect(interceptorSpy.requestCalls).toHaveLength(1);
+expect(interceptorSpy.responseCalls).toHaveLength(1);
+expect(interceptorSpy.errorCalls).toHaveLength(0);
+
+// SpyObserver
+expect(observerSpy.requestStartCalls).toHaveLength(1);
+expect(observerSpy.successCalls[0].durationMs).toBeGreaterThan(0);
+
+// Reset between tests
+interceptorSpy.reset();
+observerSpy.reset();
+```
+
+| Spy | Recorded arrays |
+|---|---|
+| `SpyInterceptor` | `requestCalls`, `responseCalls`, `responseValidatedCalls`, `errorCalls` |
+| `SpyObserver` | `requestStartCalls`, `successCalls`, `failureCalls`, `retryCalls` |
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
