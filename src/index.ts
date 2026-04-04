@@ -15,6 +15,7 @@ export * from './models/correlation-id-config';
 export * from './models/request-overrides';
 
 // Contracts
+export * from './contracts/http-adapter.contract';
 export * from './contracts/http-interceptor.contract';
 export * from './contracts/retry-policy.contract';
 export * from './contracts/retry-predicate.contract';
