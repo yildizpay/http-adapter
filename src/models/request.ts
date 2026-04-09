@@ -6,7 +6,7 @@ import { CorrelationIdConfig } from './correlation-id-config';
 import { RequestOverrides } from './request-overrides';
 
 /**
- * Represents an immutable HTTP request.
+ * Represents an HTTP request.
  *
  * This class encapsulates all necessary details for an HTTP request, including
  * the destination URL, method, headers, query parameters, and body. It also

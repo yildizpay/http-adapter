@@ -22,7 +22,7 @@ Node.js tabanlı kurumsal uygulamalar için tasarlanmış profesyonel ve yüksek
 - **Resilience & Reliability:** S2S entegrasyonlarında geçici hataları zarif bir şekilde yönetmek için Exponential Backoff gibi retry policy'ler ve built-in **Circuit Breaker** içerir.
 - **Type Safety:** Generic'ler kullanılarak tam olarak tiplendirilmiş request ve response'lar ile uygulama genelinde tip güvenliği sağlanır.
 - **Test Edilebilirlik:** Dependency injection düşünülerek tasarlandığından mock yazmak oldukça kolaydır.
-- **Immutable Tasarım:** Concurrent ortamlarda side effect'leri önlemek için core bileşenler immutable olarak tasarlanmıştır.
+- **Interceptor Pipeline:** Request, response ve hataları global düzeyde düzenlemek için yapılandırılmış bir middleware zinciri sunar.
 
 ## Kurulum
 

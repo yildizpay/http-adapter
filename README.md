@@ -22,7 +22,7 @@ A professional, robust, and highly configurable HTTP client adapter designed for
 - **Resilience & Reliability:** Built-in support for retry policies (Exponential Backoff, etc.) and a generic **Circuit Breaker** to handle transient failures gracefully and prevent cascading failures in S2S communication.
 - **Type Safety:** Fully typed requests and responses using generics, ensuring type safety across your application.
 - **Testable:** Designed with dependency injection in mind, making it easy to mock and test.
-- **Immutable Design:** Core components are immutable to prevent side effects in concurrent environments.
+- **Interceptor Pipeline:** A structured middleware chain for modifying requests, responses, and errors at a global level.
 
 ## Installation
 
