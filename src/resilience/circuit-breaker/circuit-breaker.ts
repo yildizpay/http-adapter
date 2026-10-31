@@ -46,6 +46,8 @@ export class CircuitBreaker {
   private successCount: number = 0;
   private nextAttemptAt: number = 0;
   private halfOpenProbeInFlight: boolean = false;
+  /** Incremented on every state transition; outcomes from older generations are ignored. */
+  private generation: number = 0;
   private observer: CircuitBreakerObserver | undefined;
 
   private readonly failureThreshold: number;
@@ -96,6 +98,10 @@ export class CircuitBreaker {
    *   is in flight. This prevents a recovering service from being overwhelmed by a burst
    *   of simultaneous requests the moment the reset timeout expires.
    *
+   * Only calls admitted in the current state are counted. A call that started before a
+   * state transition (e.g. while CLOSED) and settles afterwards is ignored, so it cannot
+   * release the HALF_OPEN probe slot, decide the probe's outcome or extend an OPEN window.
+   *
    * @throws {CircuitBreakerOpenException} When the circuit is OPEN or a probe is already in flight.
    */
   public async execute<T>(operation: () => Promise<T>): Promise<T> {
@@ -116,19 +122,24 @@ export class CircuitBreaker {
       this.halfOpenProbeInFlight = true;
     }
 
+    const admittedGeneration = this.generation;
+    const isCurrent = () => this.generation === admittedGeneration;
+
     try {
       const result = await operation();
-      this.recordSuccess();
-      this.observer?.onSuccess?.();
+      if (isCurrent()) {
+        this.recordSuccess();
+        this.observer?.onSuccess?.();
+      }
       return result;
     } catch (error) {
-      if (this.isFailurePredicate(error)) {
+      if (isCurrent() && this.isFailurePredicate(error)) {
         this.recordFailure();
         this.observer?.onFailure?.(error);
       }
       throw error;
     } finally {
-      if (this.state === CircuitState.HALF_OPEN) {
+      if (currentState === CircuitState.HALF_OPEN && isCurrent()) {
         this.halfOpenProbeInFlight = false;
       }
     }
@@ -159,6 +170,7 @@ export class CircuitBreaker {
   private transitionTo(newState: CircuitState): void {
     const previousState = this.state;
     this.state = newState;
+    this.generation++;
     this.failureCount = 0;
     this.successCount = 0;
     this.halfOpenProbeInFlight = false;
