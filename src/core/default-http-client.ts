@@ -71,11 +71,14 @@ export class FetchHttpClient implements HttpClientContract {
    * Reads the response body. JSON media types (`application/json`, `*+json`) are parsed;
    * a JSON body that fails to parse is returned as raw text so error payloads are not lost.
    * An empty JSON body yields `null`.
+   *
+   * A failure while reading the body (e.g. the connection drops mid-response) propagates
+   * as a network error; it must never look like a successful empty response.
    */
   private static async readBody(response: globalThis.Response): Promise<unknown> {
-    const text = await response.text().catch(() => null);
+    const text = await response.text();
     const contentType = response.headers.get('content-type');
-    if (text === null || !contentType || !isJsonMediaType(mediaTypeOf(contentType))) return text;
+    if (!contentType || !isJsonMediaType(mediaTypeOf(contentType))) return text;
     if (text === '') return null;
     try {
       return JSON.parse(text);

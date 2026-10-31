@@ -123,7 +123,7 @@ describe('HttpAdapter (integration)', () => {
       },
     );
 
-    it.failing('fails when the connection drops while reading the body (#64)', async () => {
+    it('fails when the connection drops while reading the body (#64)', async () => {
       server.route('/truncated', resetAfterHeaders);
 
       const error = await sendAndCatch(request().setEndpoint('/truncated').build());
