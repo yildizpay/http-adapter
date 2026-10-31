@@ -44,7 +44,7 @@ pnpm lint:package    # publint + are-the-types-wrong on the packed tarball
 
 1. **Open an issue first** — for anything beyond a trivial fix, open an issue to discuss the change before writing code. This avoids wasted effort if the direction isn't aligned.
 
-2. **Fork and branch** — create a branch from `main` with a descriptive name:
+2. **Fork and branch** — create a branch with a descriptive name. Branch from `next` for v4 work and from `main` for v3.11.x fixes:
    - `fix/circuit-breaker-half-open-race`
    - `feat/request-level-retry-override`
    - `chore/update-dependencies`
@@ -57,14 +57,26 @@ pnpm lint:package    # publint + are-the-types-wrong on the packed tarball
    - `chore:` for maintenance tasks
    - `docs:` for documentation changes
 
-5. **Open a PR** — fill in the PR template. Link the related issue.
+5. **Add a changeset** — run `pnpm changeset`, pick the bump type and describe the change for users. The text becomes the CHANGELOG entry. For changes that don't need a release (CI, tests, internal docs), run `pnpm changeset add --empty`. CI fails on a PR without one.
+
+6. **Open a PR** — fill in the PR template. Link the related issue.
+
+## Releasing
+
+Releases are automated with [changesets](https://github.com/changesets/changesets) and npm [staged publishing](https://docs.npmjs.com/cli/commands/npm-stage):
+
+1. While changesets are pending on `main` or `next`, CI keeps a **`chore: release`** PR open that bumps the version and writes CHANGELOG.md.
+2. Merging that PR runs `scripts/release.sh`, which stages the version on npm through trusted publishing (no npm token) with provenance, then creates the git tag and GitHub release.
+3. A maintainer approves the staged version with 2FA, on npmjs.com or with `npm stage approve <stage-id>`. Until then nothing is installable.
+
+`next` is in prerelease mode: its versions are `4.0.0-rc.N` and go to the `next` dist-tag, so `latest` is untouched. Run `pnpm changeset pre exit` there before the final 4.0.0 release.
 
 ## Guidelines
 
 - **No breaking changes without discussion.** Breaking changes require a major version bump and prior agreement in an issue.
 - **No new production dependencies.** This library is zero-dependency by design. Discuss in an issue before proposing one.
 - **Match the existing code style.** Biome enforces linting and formatting — run `pnpm check` before committing.
-- **Update CHANGELOG.md** for any user-facing change.
+- **Describe user-facing changes in the changeset.** Don't edit CHANGELOG.md by hand.
 
 ## Reporting Bugs
 

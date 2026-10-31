@@ -25,4 +25,4 @@ Closes #<!-- issue number -->
 - [ ] `pnpm typecheck` passes
 - [ ] `pnpm check` passes
 - [ ] `pnpm test:coverage` passes
-- [ ] CHANGELOG.md updated (if applicable)
+- [ ] Changeset added (`pnpm changeset`, or `pnpm changeset add --empty`)
