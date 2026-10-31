@@ -7,6 +7,7 @@ import { CorrelationIdConfig } from '../models/correlation-id-config';
 import { InterceptorClass, RequestOverrides } from '../models/request-overrides';
 import { RetryPolicy } from '../contracts/retry-policy.contract';
 import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
+import { deleteHeader, setHeader } from '../common/utils/headers';
 
 /**
  * A fluent builder for constructing HTTP requests.
@@ -69,7 +70,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public asXml(): this {
-    this.headers['Content-Type'] = 'text/xml';
+    setHeader(this.headers, 'Content-Type', 'text/xml');
     return this;
   }
 
@@ -80,7 +81,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public asFormUrlEncoded(): this {
-    this.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    setHeader(this.headers, 'Content-Type', 'application/x-www-form-urlencoded');
     return this;
   }
 
@@ -91,7 +92,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public asJson(): this {
-    this.headers['Content-Type'] = 'application/json';
+    setHeader(this.headers, 'Content-Type', 'application/json');
     return this;
   }
 
@@ -170,7 +171,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public addHeader(key: string, value: string): this {
-    this.headers[key] = value;
+    setHeader(this.headers, key, value);
     return this;
   }
 
@@ -182,7 +183,9 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public addHeaders(headers: Record<string, string>): this {
-    this.headers = { ...this.headers, ...headers };
+    for (const [key, value] of Object.entries(headers)) {
+      setHeader(this.headers, key, value);
+    }
     return this;
   }
 
@@ -193,7 +196,7 @@ export class RequestBuilder {
    * @returns The current instance of RequestBuilder for method chaining.
    */
   public removeHeader(key: string): this {
-    delete this.headers[key];
+    deleteHeader(this.headers, key);
     return this;
   }
 

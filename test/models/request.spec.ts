@@ -46,6 +46,12 @@ describe('Request', () => {
   });
 
   describe('addHeader', () => {
+    it('should replace an existing header spelled in a different case', () => {
+      const request = new Request(baseUrl, endpoint, HttpMethod.POST, { 'x-correlation-id': 'a' });
+      request.addHeader('X-Correlation-Id', 'b');
+      expect(request.headers).toEqual({ 'X-Correlation-Id': 'b' });
+    });
+
     it('should add new header', () => {
       const request = new Request(baseUrl, endpoint);
       request.addHeader('Authorization', 'Bearer token');

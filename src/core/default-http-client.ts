@@ -8,6 +8,7 @@ import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { HttpMethod } from '../common/enums/http-method.enum';
 import { HttpBody } from '../common/types/http.types';
+import { deleteHeader, findHeaderKey } from '../common/utils/headers';
 
 /** Methods whose requests carry a body by definition; an empty body is still sent for them. */
 const BODY_METHODS = new Set<string>([HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH]);
@@ -29,14 +30,13 @@ export class FetchHttpClient implements HttpClientContract {
       timeoutId = setTimeout(() => controller.abort(), config.timeout);
     }
 
+    const body = FetchHttpClient.serializeBody(config.method, config.data);
+
     try {
       const response = await fetch(config.url, {
         method: config.method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...config.headers,
-        },
-        body: FetchHttpClient.serializeBody(config.method, config.data),
+        headers: FetchHttpClient.buildHeaders(config.headers, body !== undefined),
+        body,
         signal: controller.signal,
       });
 
@@ -76,6 +76,23 @@ export class FetchHttpClient implements HttpClientContract {
         clearTimeout(timeoutId);
       }
     }
+  }
+
+  /**
+   * Content-Type describes the body, so it is only sent when there is one; it defaults to
+   * JSON unless the caller set it (in any letter case).
+   */
+  private static buildHeaders(
+    headers: Record<string, string> = {},
+    hasBody: boolean,
+  ): Record<string, string> {
+    const result = { ...headers };
+    if (!hasBody) {
+      deleteHeader(result, 'Content-Type');
+    } else if (!findHeaderKey(result, 'Content-Type')) {
+      result['Content-Type'] = 'application/json';
+    }
+    return result;
   }
 
   /**
