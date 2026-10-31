@@ -1,6 +1,7 @@
 import { RetryPolicy } from '../../src/contracts/retry-policy.contract';
 import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
-import { TimeoutException } from '../../src/exceptions/network.exceptions';
+import { SocketResetException, TimeoutException } from '../../src/exceptions/network.exceptions';
+import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
 import { RetryPredicate } from '../../src/contracts/retry-predicate.contract';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
@@ -35,6 +36,38 @@ describe('RetryPolicy', () => {
 
     it('should return false for null', () => {
       expect(policy.retryOn(null)).toBe(false);
+    });
+  });
+
+  describe('retryOn with request context', () => {
+    it.each([HttpMethod.POST, HttpMethod.PATCH])(
+      'should not retry a socket reset for non-idempotent %s',
+      (method) => {
+        expect(policy.retryOn(new SocketResetException(), { method })).toBe(false);
+      },
+    );
+
+    it.each([
+      HttpMethod.GET,
+      HttpMethod.HEAD,
+      HttpMethod.OPTIONS,
+      HttpMethod.PUT,
+      HttpMethod.DELETE,
+    ])('should retry a socket reset for idempotent %s', (method) => {
+      expect(policy.retryOn(new SocketResetException(), { method })).toBe(true);
+    });
+
+    it('should retry a socket reset when no context is given', () => {
+      expect(policy.retryOn(new SocketResetException())).toBe(true);
+    });
+
+    it('should leave other retryable errors unchanged for POST', () => {
+      expect(policy.retryOn(new TimeoutException(), { method: HttpMethod.POST })).toBe(true);
+    });
+
+    it('should let a custom predicate override the safety rule', () => {
+      policy.retryIf(() => true);
+      expect(policy.retryOn(new SocketResetException(), { method: HttpMethod.POST })).toBe(true);
     });
   });
 

@@ -1,4 +1,4 @@
-import { RetryPolicy } from '../contracts/retry-policy.contract';
+import { RetryContext, RetryPolicy } from '../contracts/retry-policy.contract';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { HttpAdapterObserver } from '../observability/http-adapter-observer';
 
@@ -30,18 +30,19 @@ export class RetryExecutor {
    *
    * @template T - The type of value returned by the operation.
    * @param operation - The async function to execute.
+   * @param context - Information about the request, passed to `RetryPolicy.retryOn()`.
    * @returns A promise that resolves with the first successful result or
    *          rejects with the last encountered error when retries are exhausted.
    * @throws The last error encountered if the policy prohibits further retries.
    */
-  async execute<T>(operation: () => Promise<T>): Promise<T> {
+  async execute<T>(operation: () => Promise<T>, context?: RetryContext): Promise<T> {
     let attempt = 1;
 
     while (true) {
       try {
         return await operation();
       } catch (err) {
-        if (!this.policy.retryOn(err)) throw err;
+        if (!this.policy.retryOn(err, context)) throw err;
 
         if (attempt >= this.policy.maxAttempts) throw err;
 

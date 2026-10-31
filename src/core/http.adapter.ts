@@ -148,7 +148,9 @@ export class HttpAdapter implements HttpAdapterContract {
         return this.dispatch<T>(request, interceptorGroups);
       }
       const executor = new RetryExecutor(effectiveRetryPolicy, this.observer);
-      return executor.execute(() => this.dispatch<T>(request, interceptorGroups));
+      return executor.execute(() => this.dispatch<T>(request, interceptorGroups), {
+        method: request.method,
+      });
     };
 
     try {
