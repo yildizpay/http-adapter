@@ -1,6 +1,7 @@
 import { HttpMethod } from '../common/enums/http-method.enum';
 import { HttpBody } from '../common/types/http.types';
 import { findHeaderKey } from '../common/utils/headers';
+import { isJsonMediaType, mediaTypeOf } from '../common/utils/media-type';
 import { HttpClientRequestConfig } from '../contracts/http-client.contract';
 
 /** Methods whose requests carry a body by definition; an empty body is still sent for them. */
@@ -46,14 +47,6 @@ export function serializeRequestBody(config: HttpClientRequestConfig): string | 
     `Cannot serialize an object body as "${mediaType}". ` +
       'Serialize it yourself and pass the string with RequestBuilder.setRawBody().',
   );
-}
-
-function mediaTypeOf(contentType: string): string {
-  return contentType.split(';')[0]!.trim().toLowerCase();
-}
-
-function isJsonMediaType(mediaType: string): boolean {
-  return mediaType === 'application/json' || mediaType.endsWith('+json');
 }
 
 function encodeForm(data: HttpBody): string {

@@ -8,6 +8,7 @@ import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { deleteHeader, findHeaderKey } from '../common/utils/headers';
 import { serializeRequestBody } from './body-serializer';
+import { isJsonMediaType, mediaTypeOf } from '../common/utils/media-type';
 
 /**
  * The default HTTP client instance based on native Fetch API (Node 18+).
@@ -35,14 +36,7 @@ export class FetchHttpClient implements HttpClientContract {
         signal: controller.signal,
       });
 
-      let responseData: unknown = null;
-      const contentType = response.headers.get('content-type');
-
-      if (contentType?.includes('application/json')) {
-        responseData = await response.json().catch(() => null);
-      } else {
-        responseData = await response.text().catch(() => null);
-      }
+      const responseData = await FetchHttpClient.readBody(response);
 
       const responseHeaders: Record<string, string> = {};
       response.headers.forEach((value, key) => {
@@ -70,6 +64,23 @@ export class FetchHttpClient implements HttpClientContract {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+    }
+  }
+
+  /**
+   * Reads the response body. JSON media types (`application/json`, `*+json`) are parsed;
+   * a JSON body that fails to parse is returned as raw text so error payloads are not lost.
+   * An empty JSON body yields `null`.
+   */
+  private static async readBody(response: globalThis.Response): Promise<unknown> {
+    const text = await response.text().catch(() => null);
+    const contentType = response.headers.get('content-type');
+    if (text === null || !contentType || !isJsonMediaType(mediaTypeOf(contentType))) return text;
+    if (text === '') return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
     }
   }
 

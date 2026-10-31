@@ -250,7 +250,7 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('response parsing (#41)', () => {
-    it.failing('parses application/problem+json as JSON', async () => {
+    it('parses application/problem+json as JSON', async () => {
       server.route('/problem', (_req, res) => {
         res.writeHead(400, { 'content-type': 'application/problem+json' });
         res.end(JSON.stringify({ title: 'Invalid card' }));

@@ -40,7 +40,7 @@ describe('FetchHttpClient', () => {
         'content-type': 'application/json; charset=utf-8',
         'x-custom': 'value',
       }),
-      json: jest.fn().mockResolvedValue({ success: true }),
+      text: jest.fn().mockResolvedValue(JSON.stringify({ success: true })),
     };
     (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
 
@@ -84,12 +84,12 @@ describe('FetchHttpClient', () => {
     expect(result.data).toBe('Plain text response');
   });
 
-  it('should handle JSON parse rejection gracefully', async () => {
+  it('should return the raw text when a JSON body fails to parse', async () => {
     const mockResponse = {
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
-      json: jest.fn().mockRejectedValue(new Error('Invalid JSON')),
+      text: jest.fn().mockResolvedValue('<html>Bad Gateway</html>'),
     };
     (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
 
@@ -97,6 +97,36 @@ describe('FetchHttpClient', () => {
       url: 'https://api.example.com',
       method: HttpMethod.GET,
     });
+
+    expect(result.data).toBe('<html>Bad Gateway</html>');
+  });
+
+  it.each([
+    'application/problem+json',
+    'application/vnd.api+json; charset=utf-8',
+    'Application/JSON',
+  ])('should parse %s as JSON', async (contentType) => {
+    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': contentType }),
+      text: jest.fn().mockResolvedValue('{"a":1}'),
+    });
+
+    const result = await client.request({ url: 'https://api.example.com', method: HttpMethod.GET });
+
+    expect(result.data).toEqual({ a: 1 });
+  });
+
+  it('should return null for an empty JSON body', async () => {
+    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: jest.fn().mockResolvedValue(''),
+    });
+
+    const result = await client.request({ url: 'https://api.example.com', method: HttpMethod.GET });
 
     expect(result.data).toBeNull();
   });
@@ -300,7 +330,7 @@ describe('FetchHttpClient', () => {
       ok: false,
       status: 404,
       headers: new Headers({ 'content-type': 'application/json' }),
-      json: jest.fn().mockResolvedValue({ error: 'Not Found' }),
+      text: jest.fn().mockResolvedValue(JSON.stringify({ error: 'Not Found' })),
     };
     (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
 
