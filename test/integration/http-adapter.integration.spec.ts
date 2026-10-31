@@ -187,7 +187,7 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('request isolation (#38)', () => {
-    it.failing('does not share headers between requests built from the same builder', async () => {
+    it('does not share headers between requests built from the same builder', async () => {
       const builder = request().setEndpoint('/a');
       const first = builder.build();
       const second = builder.build();

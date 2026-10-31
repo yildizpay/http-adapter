@@ -415,6 +415,10 @@ export class RequestBuilder {
   /**
    * Builds and returns a new Request object based on the current configuration.
    *
+   * Every call returns an independent request: headers, query parameters, body,
+   * options, validators and overrides are copied, so mutating one request (e.g. by
+   * an auth interceptor) never affects another request or this builder.
+   *
    * @returns A constructed Request object ready to be executed.
    */
   public build(): Request {
@@ -422,13 +426,24 @@ export class RequestBuilder {
       this.baseUrl,
       this.endpoint,
       this.method,
-      this.headers,
-      this.queryParams,
-      this.body ? { ...this.body } : undefined,
-      this.options,
-      this.validators,
-      this.correlationIdConfig,
-      Object.keys(this.overrides).length > 0 ? this.overrides : undefined,
+      { ...this.headers },
+      { ...this.queryParams },
+      this.body ? structuredClone(this.body) : undefined,
+      Object.assign(new RequestOptions(), this.options),
+      [...this.validators],
+      this.correlationIdConfig ? { ...this.correlationIdConfig } : undefined,
+      Object.keys(this.overrides).length > 0 ? this.copyOverrides() : undefined,
     );
+  }
+
+  private copyOverrides(): RequestOverrides {
+    const copy: RequestOverrides = { ...this.overrides };
+    if (this.overrides.excludedInterceptors) {
+      copy.excludedInterceptors = [...this.overrides.excludedInterceptors];
+    }
+    if (this.overrides.excludedInterceptorInstances) {
+      copy.excludedInterceptorInstances = [...this.overrides.excludedInterceptorInstances];
+    }
+    return copy;
   }
 }

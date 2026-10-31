@@ -159,23 +159,80 @@ describe('RequestBuilder', () => {
 
   describe('Options Management', () => {
     it('should set timeout via helper', () => {
-      // Access private options via build() ?? No, Request doesn't hold options.
-      // Wait, the builder holds options but the build() method currently ignores them
-      // in the constructor of Request!
+      expect(builder.setTimeout(5000).build().options.timeout).toBe(5000);
+    });
 
-      // Let's check the implementation of RequestBuilder and Request.
-      // RequestBuilder checks: this.options = options;
-      // But Request model constructor does NOT take options.
+    it('should replace options via setOptions', () => {
+      expect(builder.setOptions({ timeout: 2000 }).build().options.timeout).toBe(2000);
+    });
+  });
 
-      // Ah, I see a potential bug or unused code in the source.
-      // Let's first write tests that would fail if logic was connected,
-      // or just verify the builder state if possible (but state is private).
+  describe('Request isolation', () => {
+    it('should not share headers between built requests', () => {
+      const first = builder.addHeader('X-Base', '1').build();
+      const second = builder.build();
 
-      // Since I cannot check private state, and Request object doesn't have options,
-      // these methods might be effectively dead code or future-proofing.
-      // To get coverage, I just need to call them.
-      builder.setTimeout(5000);
-      builder.setOptions({ timeout: 2000 });
+      first.addHeader('Authorization', 'Bearer user-1');
+
+      expect(second.headers).toEqual({ 'Content-Type': 'application/json', 'X-Base': '1' });
+    });
+
+    it('should not let builder changes after build leak into built requests', () => {
+      const request = builder.addHeader('X-A', '1').addQueryParam('q', '1').build();
+
+      builder
+        .addHeader('X-B', '2')
+        .addQueryParam('p', '2')
+        .validateWith({ validate: () => {} });
+
+      expect(request.headers['X-B']).toBeUndefined();
+      expect(request.queryParams).toEqual({ q: '1' });
+      expect(request.validators).toHaveLength(0);
+    });
+
+    it('should not share query params between built requests', () => {
+      const first = builder.build();
+      const second = builder.build();
+
+      first.addQueryParam('api_key', 'secret');
+
+      expect(second.queryParams).toEqual({});
+    });
+
+    it('should deep-copy the body', () => {
+      const first = builder.setBody({ card: { number: '4111' } }).build();
+      const second = builder.build();
+
+      (first.body!.card as HttpBody).number = '5555';
+
+      expect((second.body!.card as HttpBody).number).toBe('4111');
+    });
+
+    it('should not share options between built requests', () => {
+      const first = builder.setTimeout(1000).build();
+      const second = builder.build();
+
+      first.options.timeout = 1;
+
+      expect(second.options.timeout).toBe(1000);
+    });
+
+    it('should not share override exclusion lists between built requests', () => {
+      class A {}
+      class B {}
+      const first = builder.withoutInterceptor(A).build();
+      builder.withoutInterceptor(B);
+
+      expect(first.overrides?.excludedInterceptors).toEqual([A]);
+    });
+
+    it('should not share correlation id config between built requests', () => {
+      const first = builder.withCorrelationId('x-request-id').build();
+      const second = builder.build();
+
+      first.correlationIdConfig!.header = 'changed';
+
+      expect(second.correlationIdConfig?.header).toBe('x-request-id');
     });
   });
 
