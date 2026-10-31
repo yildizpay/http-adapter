@@ -276,4 +276,88 @@ describe('CircuitBreaker', () => {
       jest.restoreAllMocks();
     });
   });
+
+  describe('stale completions', () => {
+    const deferred = <T>() => {
+      let resolve!: (value: T) => void;
+      let reject!: (reason: unknown) => void;
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    };
+    const fail = () =>
+      circuitBreaker.execute(async () => {
+        throw new Error('fail');
+      });
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should not let a request admitted while CLOSED release the HALF_OPEN probe slot', async () => {
+      const slow = deferred<string>();
+      const slowCall = circuitBreaker.execute(() => slow.promise);
+
+      await fail().catch(() => undefined);
+      await fail().catch(() => undefined);
+      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
+
+      jest.advanceTimersByTime(1000);
+      const probe = deferred<string>();
+      const probeCall = circuitBreaker.execute(() => probe.promise);
+      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
+
+      slow.resolve('late');
+      await expect(slowCall).resolves.toBe('late');
+
+      expect(circuitBreaker.getState()).toBe(CircuitState.HALF_OPEN);
+      await expect(circuitBreaker.execute(async () => 'second probe')).rejects.toBeInstanceOf(
+        CircuitBreakerOpenException,
+      );
+
+      probe.reject(new Error('still down'));
+      await expect(probeCall).rejects.toThrow('still down');
+      expect(circuitBreaker.getState()).toBe(CircuitState.OPEN);
+    });
+
+    it('should not let a late failure re-open or extend an OPEN circuit', async () => {
+      const slow = deferred<string>();
+      const slowCall = circuitBreaker.execute(() => slow.promise);
+
+      await fail().catch(() => undefined);
+      await fail().catch(() => undefined);
+      jest.advanceTimersByTime(1000);
+      await circuitBreaker.execute(async () => 'recovered');
+      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
+
+      slow.reject(new Error('late failure'));
+      await expect(slowCall).rejects.toThrow('late failure');
+
+      await fail().catch(() => undefined);
+      expect(circuitBreaker.getState()).toBe(CircuitState.CLOSED);
+    });
+
+    it('should not notify the observer about stale outcomes', async () => {
+      const observer = { onSuccess: jest.fn(), onFailure: jest.fn() };
+      circuitBreaker.observe(observer);
+      const slow = deferred<string>();
+      const slowCall = circuitBreaker.execute(() => slow.promise);
+
+      await fail().catch(() => undefined);
+      await fail().catch(() => undefined);
+      observer.onFailure.mockClear();
+
+      slow.resolve('late');
+      await slowCall;
+
+      expect(observer.onSuccess).not.toHaveBeenCalled();
+      expect(observer.onFailure).not.toHaveBeenCalled();
+    });
+  });
 });
