@@ -66,15 +66,16 @@ const adapter = HttpAdapter.builder()
   .build();
 ```
 
-You can also use `HttpAdapter.create()` directly if you prefer a single-call approach.
+If the configuration already lives in an object, `HttpAdapter.create()` takes the same options. Every option is optional.
 
 ```typescript
-const adapter = HttpAdapter.create(
-  [new AuthInterceptor()],
-  RetryPolicies.exponential(3),
-  undefined,                    // Optional custom HTTP client
-  new CircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 }),
-);
+const adapter = HttpAdapter.create({
+  interceptors: [new AuthInterceptor()],
+  retryPolicy: RetryPolicies.exponential(3),
+  circuitBreaker: { failureThreshold: 5, resetTimeoutMs: 60000 }, // or a CircuitBreaker instance
+  correlationId: { enabled: true },
+  // httpClient, observer
+});
 ```
 
 ### 3. Sending a Request
@@ -355,13 +356,13 @@ Network instability is inevitable. This adapter allows you to define robust retr
 
 | Policy | Factory | Behaviour |
 |---|---|---|
-| Exponential Backoff | `RetryPolicies.exponential(attempts)` | Delay doubles with each attempt plus small jitter — default choice |
-| Fixed Delay | `RetryPolicies.fixedDelay(attempts, delayMs)` | Constant wait between every retry |
-| Linear Backoff | `RetryPolicies.linearBackoff(attempts, stepMs)` | Delay grows linearly (`attempt × stepMs`) |
-| Full Jitter | `RetryPolicies.fullJitter(attempts, baseMs)` | Fully random delay within exponential cap — best for spreading concurrent load |
-| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | Random delay between `baseMs` and a cap that triples per retry — wide spread across concurrent clients |
+| Exponential Backoff | `RetryPolicies.exponential(maxAttempts)` | Delay doubles with each attempt plus small jitter — default choice |
+| Fixed Delay | `RetryPolicies.fixedDelay(maxAttempts, delayMs)` | Constant wait between every retry |
+| Linear Backoff | `RetryPolicies.linearBackoff(maxAttempts, stepMs)` | Delay grows linearly (`attempt × stepMs`) |
+| Full Jitter | `RetryPolicies.fullJitter(maxAttempts, baseMs)` | Fully random delay within exponential cap — best for spreading concurrent load |
+| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(maxAttempts, baseMs, maxDelayMs)` | Random delay between `baseMs` and a cap that triples per retry — wide spread across concurrent clients |
 
-> **`attempts` is the total number of calls, including the first one.** `RetryPolicies.exponential(3)` sends the request at most 3 times: the original call plus 2 retries.
+> **`maxAttempts` is the total number of calls, including the first one.** `RetryPolicies.exponential(3)` sends the request at most 3 times: the original call plus 2 retries.
 
 Delay before retry *n* (n = 1 for the first retry):
 
@@ -724,9 +725,9 @@ adapter.onEndpoint('/api/payments')
 adapter.assertCalledTimes(2);
 adapter.assertCalledWith('/api/payments', { method: HttpMethod.POST });
 adapter.assertCalledWithBody(0, { AMOUNT: '100', CURRENCY: 'TRY' });
-adapter.assertNthCalledWith(1, '/api/payments');
+adapter.assertCallAt(0, '/api/payments');      // zero-based, like getCall()
 adapter.assertLastCalledWith('/api/refunds');
-adapter.assertCallOrder('/api/payments', '/api/refunds');
+adapter.assertCallOrder(['/api/payments', '/api/refunds']);
 adapter.assertNotCalled();
 
 // Convenience getters
