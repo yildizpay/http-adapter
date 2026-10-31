@@ -1,12 +1,12 @@
-import {
+import type {
   HttpErrorInterceptor,
   HttpRequestInterceptor,
   HttpResponseInterceptor,
   HttpValidatedResponseInterceptor,
 } from '../contracts/http-interceptor.contract';
-import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { Request } from '../models/request';
-import { Response } from '../models/response';
+import type { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import type { Request } from '../models/request';
+import type { Response } from '../models/response';
 
 /**
  * A no-op implementation of all HTTP interceptor hooks.

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 4.0.0
+
+### Breaking changes
+
+- **Node.js >= 22 is required.** Node 18 and 20 are end-of-life. ([#47](https://github.com/yildizpay/http-adapter/issues/47))
+- **The package ships ESM and CommonJS builds.** `import` resolves to `dist/index.js` and `require` to `dist/index.cjs`, each with its own type declarations. The per-file output under `dist/` is gone, so tools that bypass `exports` (such as TypeScript's legacy `node10` resolution) can no longer reach paths like `dist/core/http.adapter`; import from `@yildizpay/http-adapter` or `@yildizpay/http-adapter/testing`. An application that loads the package through both `import` and `require` gets two copies of every class, so `instanceof` checks only match within the same module format. ([#47](https://github.com/yildizpay/http-adapter/issues/47))
+
+### Changed
+
+- Type declarations keep their JSDoc, so editors show the documentation. ([#47](https://github.com/yildizpay/http-adapter/issues/47))
+- The published tarball no longer contains `tsconfig.tsbuildinfo` or per-file build output. ([#47](https://github.com/yildizpay/http-adapter/issues/47))
+
 ## [3.11.0] - 2026-10-31
 
 This release fixes transport-level bugs found by a new integration test suite that runs the default `fetch` client against a real HTTP server. No public API was removed or renamed.

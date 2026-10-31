@@ -1,11 +1,11 @@
-import { HttpAdapter } from '../../src/core/http.adapter';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import { RetryPolicies } from '../../src/resilience/retry.policies';
+import { HttpAdapter } from '../../src/core/http.adapter';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import {
+  type InternalServerErrorException,
   NotFoundException,
-  InternalServerErrorException,
 } from '../../src/exceptions/http-status.exceptions';
 import {
   ConnectionRefusedException,
@@ -14,14 +14,15 @@ import {
   SocketResetException,
   TimeoutException,
 } from '../../src/exceptions/network.exceptions';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
 import {
-  TestServer,
   delay,
   json,
   refusedUrl,
   resetAfterHeaders,
   resetBeforeHeaders,
   status,
+  TestServer,
   UNRESOLVABLE_URL,
 } from './support/test-server';
 

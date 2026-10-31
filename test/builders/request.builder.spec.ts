@@ -1,9 +1,10 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import { ResponseValidator } from '../../src/contracts/response-validator.contract';
-import { HttpBody } from '../../src/common/types/http.types';
-import { RetryPolicies } from '../../src/resilience/retry.policies';
+import type { HttpBody } from '../../src/common/types/http.types';
+import type { ResponseValidator } from '../../src/contracts/response-validator.contract';
 import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
 
 describe('RequestBuilder', () => {
   let builder: RequestBuilder;
@@ -108,7 +109,7 @@ describe('RequestBuilder', () => {
   describe('Header Management', () => {
     it('should add single header', () => {
       const request = builder.addHeader('Authorization', 'Bearer token').build();
-      expect(request.headers['Authorization']).toBe('Bearer token');
+      expect(request.headers.Authorization).toBe('Bearer token');
     });
 
     it('should merge headers', () => {
@@ -123,7 +124,7 @@ describe('RequestBuilder', () => {
   describe('Query Params Management', () => {
     it('should add single query param', () => {
       const request = builder.addQueryParam('page', '1').build();
-      expect(request.queryParams['page']).toBe('1');
+      expect(request.queryParams.page).toBe('1');
     });
 
     it('should merge query params', () => {
@@ -149,7 +150,7 @@ describe('RequestBuilder', () => {
         .build();
 
       expect(request.queryParams).toEqual({ new: 'value' });
-      expect(request.queryParams['old']).toBeUndefined();
+      expect(request.queryParams.old).toBeUndefined();
     });
   });
 
@@ -180,13 +181,13 @@ describe('RequestBuilder', () => {
   describe('Header Management (Batch)', () => {
     it('should add multiple headers', () => {
       const request = builder.addHeaders({ H1: '1', H2: '2' }).build();
-      expect(request.headers['H1']).toBe('1');
-      expect(request.headers['H2']).toBe('2');
+      expect(request.headers.H1).toBe('1');
+      expect(request.headers.H2).toBe('2');
     });
 
     it('should remove header', () => {
       const request = builder.addHeader('H1', '1').removeHeader('H1').build();
-      expect(request.headers['H1']).toBeUndefined();
+      expect(request.headers.H1).toBeUndefined();
     });
 
     it('should reset headers', () => {
@@ -275,7 +276,7 @@ describe('RequestBuilder', () => {
   });
 
   describe('validateWith', () => {
-    const makeValidator = (): ResponseValidator => ({ validate: jest.fn() });
+    const makeValidator = (): ResponseValidator => ({ validate: vi.fn() });
 
     it('should register a single validator', () => {
       const validator = makeValidator();

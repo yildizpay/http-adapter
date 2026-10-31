@@ -1,5 +1,5 @@
-import { CircuitBreakerObserver } from '../observability/circuit-breaker-observer';
-import { CircuitState } from '../resilience/circuit-breaker/circuit-state.enum';
+import type { CircuitBreakerObserver } from '../observability/circuit-breaker-observer';
+import type { CircuitState } from '../resilience/circuit-breaker/circuit-state.enum';
 
 /**
  * A no-op implementation of all `CircuitBreakerObserver` hooks.

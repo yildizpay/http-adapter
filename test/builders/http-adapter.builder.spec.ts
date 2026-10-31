@@ -1,9 +1,10 @@
+import { describe, expect, it, vi } from 'vitest';
 import { HttpAdapterBuilder } from '../../src/builders/http-adapter.builder';
+import type { HttpClientContract } from '../../src/contracts/http-client.contract';
+import type { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
 import { HttpAdapter } from '../../src/core/http.adapter';
 import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
 import { RetryPolicies } from '../../src/resilience/retry.policies';
-import { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
-import { HttpClientContract } from '../../src/contracts/http-client.contract';
 
 describe('HttpAdapterBuilder', () => {
   it('should build an HttpAdapter with no configuration', () => {
@@ -80,14 +81,14 @@ describe('HttpAdapterBuilder', () => {
 
   describe('withHttpClient', () => {
     it('should set a custom HTTP client', () => {
-      const client: HttpClientContract = { request: jest.fn() };
+      const client: HttpClientContract = { request: vi.fn() };
       const adapter = new HttpAdapterBuilder().withHttpClient(client).build();
       expect(adapter).toBeInstanceOf(HttpAdapter);
     });
 
     it('should return the builder instance for chaining', () => {
       const builder = new HttpAdapterBuilder();
-      expect(builder.withHttpClient({ request: jest.fn() })).toBe(builder);
+      expect(builder.withHttpClient({ request: vi.fn() })).toBe(builder);
     });
   });
 
@@ -114,7 +115,7 @@ describe('HttpAdapterBuilder', () => {
         .withInterceptor({ onRequest: async (r) => r })
         .withRetryPolicy(RetryPolicies.exponential(3))
         .withCircuitBreaker({ failureThreshold: 5 })
-        .withHttpClient({ request: jest.fn() })
+        .withHttpClient({ request: vi.fn() })
         .withCorrelationId()
         .build();
       expect(adapter).toBeInstanceOf(HttpAdapter);

@@ -1,6 +1,7 @@
+import { describe, expect, it } from 'vitest';
 import { ApiKeyInterceptor } from '../../src/auth/api-key.interceptor';
-import { Request } from '../../src/models/request';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import { Request } from '../../src/models/request';
 
 const makeRequest = () => new Request('https://api.example.com', '/test', HttpMethod.GET);
 
@@ -33,14 +34,14 @@ describe('ApiKeyInterceptor', () => {
       const interceptor = ApiKeyInterceptor.of('my-key', { queryParam: 'api_key' });
       const request = makeRequest();
       await interceptor.onRequest(request);
-      expect(request.queryParams['api_key']).toBe('my-key');
+      expect(request.queryParams.api_key).toBe('my-key');
     });
 
     it('should support a custom query param name', async () => {
       const interceptor = ApiKeyInterceptor.of('my-key', { queryParam: 'token' });
       const request = makeRequest();
       await interceptor.onRequest(request);
-      expect(request.queryParams['token']).toBe('my-key');
+      expect(request.queryParams.token).toBe('my-key');
     });
 
     it('should support a dynamic token provider', async () => {
@@ -49,7 +50,7 @@ describe('ApiKeyInterceptor', () => {
       });
       const request = makeRequest();
       await interceptor.onRequest(request);
-      expect(request.queryParams['api_key']).toBe('dynamic-key');
+      expect(request.queryParams.api_key).toBe('dynamic-key');
     });
   });
 

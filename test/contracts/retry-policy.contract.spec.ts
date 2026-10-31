@@ -1,10 +1,11 @@
-import { RetryPolicy } from '../../src/contracts/retry-policy.contract';
-import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
-import { SocketResetException, TimeoutException } from '../../src/exceptions/network.exceptions';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import { RetryPolicy } from '../../src/contracts/retry-policy.contract';
+import type { RetryPredicate } from '../../src/contracts/retry-predicate.contract';
+import type { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
-import { RetryPredicate } from '../../src/contracts/retry-predicate.contract';
-import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import { SocketResetException, TimeoutException } from '../../src/exceptions/network.exceptions';
 import { Response } from '../../src/models/response';
 
 class TestPolicy extends RetryPolicy {
@@ -94,7 +95,7 @@ describe('RetryPolicy', () => {
     });
 
     it('should not call the predicate for non-adapter errors', () => {
-      const predicate = jest.fn(() => true);
+      const predicate = vi.fn(() => true);
       policy.retryIf(predicate);
       policy.retryOn(new Error('plain'));
       expect(predicate).not.toHaveBeenCalled();

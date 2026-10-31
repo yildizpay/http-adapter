@@ -1,10 +1,11 @@
-import { MockHttpAdapter } from '../../src/testing/mock-http-adapter';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import type { HttpBody } from '../../src/common/types/http.types';
+import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
+import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
 import { Request } from '../../src/models/request';
 import { Response } from '../../src/models/response';
-import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import { HttpBody } from '../../src/common/types/http.types';
-import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
-import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
+import { MockHttpAdapter } from '../../src/testing/mock-http-adapter';
 
 const makeRequest = (endpoint = '/test', method = HttpMethod.POST) =>
   new Request('https://api.example.com', endpoint, method);

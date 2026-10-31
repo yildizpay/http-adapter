@@ -1,6 +1,7 @@
+import { describe, expect, it, vi } from 'vitest';
+import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
 import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
 import { CircuitState } from '../../src/resilience/circuit-breaker/circuit-state.enum';
-import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
 
 const fail = () => {
   throw new Error('fail');
@@ -20,7 +21,7 @@ describe('CircuitBreakerObserver', () => {
 
     it('should fire OPEN → HALF_OPEN after reset timeout', async () => {
       let currentTime = 10000;
-      jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+      vi.spyOn(Date, 'now').mockImplementation(() => currentTime);
 
       const changes: Array<{ from: CircuitState; to: CircuitState }> = [];
       const cb = new CircuitBreaker({ failureThreshold: 1, resetTimeoutMs: 1000 }).observe({
@@ -32,12 +33,12 @@ describe('CircuitBreakerObserver', () => {
       cb.getState();
 
       expect(changes).toContainEqual({ from: CircuitState.OPEN, to: CircuitState.HALF_OPEN });
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('should fire HALF_OPEN → CLOSED when probe succeeds', async () => {
       let currentTime = 10000;
-      jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+      vi.spyOn(Date, 'now').mockImplementation(() => currentTime);
 
       const changes: Array<{ from: CircuitState; to: CircuitState }> = [];
       const cb = new CircuitBreaker({ failureThreshold: 1, resetTimeoutMs: 1000 }).observe({
@@ -49,12 +50,12 @@ describe('CircuitBreakerObserver', () => {
       await cb.execute(async () => 'ok');
 
       expect(changes).toContainEqual({ from: CircuitState.HALF_OPEN, to: CircuitState.CLOSED });
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('should fire HALF_OPEN → OPEN when probe fails', async () => {
       let currentTime = 10000;
-      jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+      vi.spyOn(Date, 'now').mockImplementation(() => currentTime);
 
       const changes: Array<{ from: CircuitState; to: CircuitState }> = [];
       const cb = new CircuitBreaker({ failureThreshold: 1, resetTimeoutMs: 1000 }).observe({
@@ -66,13 +67,13 @@ describe('CircuitBreakerObserver', () => {
       await expect(cb.execute(async () => fail())).rejects.toThrow();
 
       expect(changes).toContainEqual({ from: CircuitState.HALF_OPEN, to: CircuitState.OPEN });
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
   });
 
   describe('onSuccess', () => {
     it('should fire after every successful execution', async () => {
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
       const cb = new CircuitBreaker().observe({ onSuccess });
 
       await cb.execute(async () => 'ok');
@@ -81,7 +82,7 @@ describe('CircuitBreakerObserver', () => {
     });
 
     it('should not fire when operation fails', async () => {
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
       const cb = new CircuitBreaker({ failureThreshold: 5 }).observe({ onSuccess });
 
       await expect(cb.execute(async () => fail())).rejects.toThrow();
@@ -91,7 +92,7 @@ describe('CircuitBreakerObserver', () => {
 
   describe('onFailure', () => {
     it('should fire with the error when isFailure predicate returns true', async () => {
-      const onFailure = jest.fn();
+      const onFailure = vi.fn();
       const cb = new CircuitBreaker({ failureThreshold: 5 }).observe({ onFailure });
 
       const err = new Error('fail');
@@ -104,7 +105,7 @@ describe('CircuitBreakerObserver', () => {
     });
 
     it('should not fire when isFailure predicate returns false', async () => {
-      const onFailure = jest.fn();
+      const onFailure = vi.fn();
       const cb = new CircuitBreaker({
         failureThreshold: 5,
         isFailure: () => false,
@@ -118,9 +119,9 @@ describe('CircuitBreakerObserver', () => {
   describe('onProbeRejected', () => {
     it('should fire when a concurrent caller is rejected in HALF_OPEN', async () => {
       let currentTime = 10000;
-      jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+      vi.spyOn(Date, 'now').mockImplementation(() => currentTime);
 
-      const onProbeRejected = jest.fn();
+      const onProbeRejected = vi.fn();
       const cb = new CircuitBreaker({ failureThreshold: 1, resetTimeoutMs: 1000 }).observe({
         onProbeRejected,
       });
@@ -143,7 +144,7 @@ describe('CircuitBreakerObserver', () => {
 
       resolveProbe();
       await probePromise;
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
   });
 

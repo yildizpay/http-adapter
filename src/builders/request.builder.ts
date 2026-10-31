@@ -1,13 +1,13 @@
 import { HttpMethod } from '../common/enums/http-method.enum';
-import { HttpBody } from '../common/types/http.types';
+import type { HttpBody } from '../common/types/http.types';
+import { deleteHeader, setHeader } from '../common/utils/headers';
+import type { ResponseValidator } from '../contracts/response-validator.contract';
+import type { RetryPolicy } from '../contracts/retry-policy.contract';
+import type { CorrelationIdConfig } from '../models/correlation-id-config';
 import { Request } from '../models/request';
 import { RequestOptions } from '../models/request-options';
-import { ResponseValidator } from '../contracts/response-validator.contract';
-import { CorrelationIdConfig } from '../models/correlation-id-config';
-import { InterceptorClass, RequestOverrides } from '../models/request-overrides';
-import { RetryPolicy } from '../contracts/retry-policy.contract';
-import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
-import { deleteHeader, setHeader } from '../common/utils/headers';
+import type { InterceptorClass, RequestOverrides } from '../models/request-overrides';
+import type { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 
 /**
  * A fluent builder for constructing HTTP requests.

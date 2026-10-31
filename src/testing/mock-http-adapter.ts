@@ -1,8 +1,8 @@
-import { Request } from '../models/request';
+import type { HttpMethod } from '../common/enums/http-method.enum';
+import type { HttpBody } from '../common/types/http.types';
+import type { HttpAdapterContract } from '../contracts/http-adapter.contract';
+import type { Request } from '../models/request';
 import { Response } from '../models/response';
-import { HttpAdapterContract } from '../contracts/http-adapter.contract';
-import { HttpMethod } from '../common/enums/http-method.enum';
-import { HttpBody } from '../common/types/http.types';
 
 // --- Internal types ---
 
@@ -782,8 +782,7 @@ export class MockHttpAdapter implements HttpAdapterContract {
     const actualEndpoints = this.calls.map((c) => c.endpoint);
     let searchFrom = 0;
 
-    for (let i = 0; i < endpoints.length; i++) {
-      const endpoint = endpoints[i];
+    for (const [i, endpoint] of endpoints.entries()) {
       const idx = actualEndpoints.indexOf(endpoint, searchFrom);
 
       if (idx === -1) {

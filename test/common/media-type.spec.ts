@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { isJsonMediaType, mediaTypeOf } from '../../src/common/utils/media-type';
 
 describe('media type helpers', () => {

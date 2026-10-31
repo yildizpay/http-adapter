@@ -1,4 +1,4 @@
-import { Response } from '../models/response';
+import type { Response } from '../models/response';
 
 /**
  * Contract for validating HTTP responses before they are returned to the caller.

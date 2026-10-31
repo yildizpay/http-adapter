@@ -1,6 +1,6 @@
-import { RetryContext, RetryPolicy } from '../contracts/retry-policy.contract';
+import type { RetryContext, RetryPolicy } from '../contracts/retry-policy.contract';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import type { HttpAdapterObserver } from '../observability/http-adapter-observer';
 
 /**
  * Executes an asynchronous operation with configurable retry semantics.

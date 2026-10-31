@@ -1,23 +1,24 @@
+import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import type { RetryPolicy } from '../../src/contracts/retry-policy.contract';
 import { RetryExecutor } from '../../src/resilience/retry-executor';
-import { RetryPolicy } from '../../src/contracts/retry-policy.contract';
 
 describe('RetryExecutor', () => {
-  let mockPolicy: jest.Mocked<RetryPolicy>;
+  let mockPolicy: Mocked<RetryPolicy>;
   let executor: RetryExecutor;
 
   beforeEach(() => {
     mockPolicy = {
       maxAttempts: 3,
-      backoffMs: jest.fn().mockReturnValue(10), // Short delay for tests
-      retryOn: jest.fn(),
-    } as unknown as jest.Mocked<RetryPolicy>;
+      backoffMs: vi.fn().mockReturnValue(10), // Short delay for tests
+      retryOn: vi.fn(),
+    } as unknown as Mocked<RetryPolicy>;
 
     executor = new RetryExecutor(mockPolicy);
   });
 
   it('should return result immediately if operation succeeds', async () => {
-    const operation = jest.fn().mockResolvedValue('success');
+    const operation = vi.fn().mockResolvedValue('success');
 
     const result = await executor.execute(operation);
 
@@ -28,7 +29,7 @@ describe('RetryExecutor', () => {
 
   it('should pass the request context to the policy', async () => {
     const error = new Error('fail');
-    const operation = jest.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
+    const operation = vi.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
     mockPolicy.retryOn.mockReturnValue(true);
 
     await executor.execute(operation, { method: HttpMethod.POST });
@@ -38,7 +39,7 @@ describe('RetryExecutor', () => {
 
   it('should retry on failure if policy allows it', async () => {
     const error = new Error('fail');
-    const operation = jest.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
+    const operation = vi.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
 
     mockPolicy.retryOn.mockReturnValue(true);
 
@@ -52,7 +53,7 @@ describe('RetryExecutor', () => {
 
   it('should throw immediately if policy says do not retry', async () => {
     const error = new Error('fatal error');
-    const operation = jest.fn().mockRejectedValue(error);
+    const operation = vi.fn().mockRejectedValue(error);
 
     mockPolicy.retryOn.mockReturnValue(false);
 
@@ -62,7 +63,7 @@ describe('RetryExecutor', () => {
 
   it('should retry up to maxAttempts and then throw', async () => {
     const error = new Error('persistent fail');
-    const operation = jest.fn().mockRejectedValue(error);
+    const operation = vi.fn().mockRejectedValue(error);
 
     mockPolicy.retryOn.mockReturnValue(true);
 

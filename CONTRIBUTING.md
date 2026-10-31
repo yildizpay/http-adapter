@@ -4,7 +4,7 @@ Thank you for your interest in contributing. This document covers everything you
 
 ## Prerequisites
 
-- Node.js >= 18
+- Node.js >= 22
 - pnpm >= 10
 
 ## Setup
@@ -20,21 +20,24 @@ pnpm install
 ### Running tests
 
 ```bash
-pnpm test          # run all tests
-pnpm test:cov      # run with coverage report
+pnpm test            # run all tests (Vitest)
+pnpm test:watch      # re-run tests on change
+pnpm test:coverage   # run with coverage report (100% required)
 ```
 
-### Linting
+### Type checking, linting and formatting
 
 ```bash
-pnpm lint          # check for lint errors
-pnpm lint:fix      # auto-fix lint errors
+pnpm typecheck       # tsc --noEmit over src and test
+pnpm lint            # Biome lint
+pnpm check           # Biome lint + format + import sorting, with fixes applied
 ```
 
 ### Building
 
 ```bash
-pnpm build
+pnpm build           # tsup: ESM + CJS bundles and type declarations in dist/
+pnpm lint:package    # publint + are-the-types-wrong on the packed tarball
 ```
 
 ## Making Changes
@@ -60,7 +63,7 @@ pnpm build
 
 - **No breaking changes without discussion.** Breaking changes require a major version bump and prior agreement in an issue.
 - **No new production dependencies.** This library is zero-dependency by design. Discuss in an issue before proposing one.
-- **Match the existing code style.** Prettier and ESLint enforce the formatting — run `pnpm lint:fix` before committing.
+- **Match the existing code style.** Biome enforces linting and formatting — run `pnpm check` before committing.
 - **Update CHANGELOG.md** for any user-facing change.
 
 ## Reporting Bugs

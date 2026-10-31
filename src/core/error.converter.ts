@@ -1,10 +1,10 @@
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { UnknownException } from '../exceptions/unknown.exception';
 import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
-import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
-import { RequestContext } from '../models/request-context';
 import { HttpException } from '../exceptions/http-status.exceptions';
 import { NetworkException } from '../exceptions/network.exceptions';
+import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
+import { UnknownException } from '../exceptions/unknown.exception';
+import type { RequestContext } from '../models/request-context';
 
 /**
  * Shape of an HTTP-like error object (e.g. Axios error, custom client error).

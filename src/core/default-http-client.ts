@@ -1,14 +1,14 @@
-import {
+import { deleteHeader, findHeaderKey } from '../common/utils/headers';
+import { isJsonMediaType, mediaTypeOf } from '../common/utils/media-type';
+import type {
   HttpClientContract,
   HttpClientRequestConfig,
   HttpClientResponse,
 } from '../contracts/http-client.contract';
-import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
-import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { deleteHeader, findHeaderKey } from '../common/utils/headers';
+import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
+import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
 import { serializeRequestBody } from './body-serializer';
-import { isJsonMediaType, mediaTypeOf } from '../common/utils/media-type';
 
 /**
  * The default HTTP client instance based on native Fetch API (Node 18+).

@@ -2,12 +2,12 @@ import { BaseAdapterException } from './base-adapter.exception';
 import { CircuitBreakerOpenException } from './circuit-breaker-open.exception';
 import { HttpException } from './http-status.exceptions';
 import {
-  NetworkException,
-  TimeoutException,
   ConnectionRefusedException,
   DnsResolutionException,
-  SocketResetException,
   HostUnreachableException,
+  NetworkException,
+  SocketResetException,
+  TimeoutException,
 } from './network.exceptions';
 import { UnknownException } from './unknown.exception';
 import { ValidationException } from './validation.exception';

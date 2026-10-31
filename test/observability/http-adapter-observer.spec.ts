@@ -1,11 +1,12 @@
-import { HttpAdapter } from '../../src/core/http.adapter';
-import { HttpAdapterObserver } from '../../src/observability/http-adapter-observer';
+import { describe, expect, it, vi } from 'vitest';
 import { RequestBuilder } from '../../src/builders/request.builder';
-import { Response } from '../../src/models/response';
+import type { HttpClientContract } from '../../src/contracts/http-client.contract';
+import { HttpAdapter } from '../../src/core/http.adapter';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
-import { RetryPolicies } from '../../src/resilience/retry.policies';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
-import { HttpClientContract } from '../../src/contracts/http-client.contract';
+import type { Response } from '../../src/models/response';
+import type { HttpAdapterObserver } from '../../src/observability/http-adapter-observer';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
 
 const makeRequest = () =>
   new RequestBuilder('https://api.example.com').setEndpoint('/test').build();
@@ -13,7 +14,7 @@ const makeRequest = () =>
 const mockClient = (
   impl: () => Promise<{ data: unknown; status: number; headers: Record<string, string> }>,
 ): HttpClientContract => ({
-  request: jest.fn(impl) as HttpClientContract['request'],
+  request: vi.fn(impl) as HttpClientContract['request'],
 });
 
 describe('HttpAdapterObserver', () => {
@@ -70,7 +71,7 @@ describe('HttpAdapterObserver', () => {
     });
 
     it('should not fire when the request fails', async () => {
-      const onRequestSuccess = jest.fn();
+      const onRequestSuccess = vi.fn();
       const observer: HttpAdapterObserver = { onRequestSuccess };
 
       const adapter = HttpAdapter.create(
@@ -118,7 +119,7 @@ describe('HttpAdapterObserver', () => {
     });
 
     it('should not fire when the request succeeds', async () => {
-      const onRequestFailure = jest.fn();
+      const onRequestFailure = vi.fn();
       const observer: HttpAdapterObserver = { onRequestFailure };
 
       const adapter = HttpAdapter.create(
@@ -160,12 +161,12 @@ describe('HttpAdapterObserver', () => {
 
       await adapter.send(makeRequest());
       expect(retryCalls).toHaveLength(2);
-      expect(retryCalls[0].attempt).toBe(1);
-      expect(retryCalls[1].attempt).toBe(2);
+      expect(retryCalls[0]?.attempt).toBe(1);
+      expect(retryCalls[1]?.attempt).toBe(2);
     });
 
     it('should not fire when no retry policy is set', async () => {
-      const onRetry = jest.fn();
+      const onRetry = vi.fn();
       const observer: HttpAdapterObserver = { onRetry };
 
       const adapter = HttpAdapter.create(
@@ -186,7 +187,7 @@ describe('HttpAdapterObserver', () => {
 
   describe('builder integration', () => {
     it('should register observer via withObserver()', async () => {
-      const onRequestSuccess = jest.fn();
+      const onRequestSuccess = vi.fn();
 
       const adapter = HttpAdapter.builder()
         .withHttpClient(mockClient(async () => ({ data: {}, status: 200, headers: {} })))

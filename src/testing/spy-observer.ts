@@ -1,7 +1,7 @@
-import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { Request } from '../models/request';
-import { Response } from '../models/response';
-import { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import type { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import type { Request } from '../models/request';
+import type { Response } from '../models/response';
+import type { HttpAdapterObserver } from '../observability/http-adapter-observer';
 
 /** A single recorded invocation of the {@link SpyObserver.onRequestSuccess} hook. */
 export interface SpyObserverSuccessCall {

@@ -1,4 +1,4 @@
-import { Response } from '../models/response';
+import type { Response } from '../models/response';
 import { BaseAdapterException } from './base-adapter.exception';
 
 /**

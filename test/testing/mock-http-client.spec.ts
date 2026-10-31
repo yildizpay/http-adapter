@@ -1,6 +1,7 @@
-import { MockHttpClient } from '../../src/testing/mock-http-client';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
+import { MockHttpClient } from '../../src/testing/mock-http-client';
 
 const makeConfig = (overrides = {}) => ({
   url: 'https://api.example.com/test',

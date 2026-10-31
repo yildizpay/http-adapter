@@ -1,6 +1,6 @@
-import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { Request } from '../models/request';
-import { Response } from '../models/response';
+import type { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import type { Request } from '../models/request';
+import type { Response } from '../models/response';
 
 /**
  * Defines the contract for an HTTP interceptor.

@@ -1,5 +1,5 @@
-import { HttpRequestInterceptor } from '../contracts/http-interceptor.contract';
-import { Request } from '../models/request';
+import type { HttpRequestInterceptor } from '../contracts/http-interceptor.contract';
+import type { Request } from '../models/request';
 
 /**
  * An interceptor that attaches HTTP Basic Authentication credentials to every

@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { DecorrelatedJitterPolicy } from '../../../src/resilience/policies/decorrelated-jitter.retry-policy';
 
 describe('DecorrelatedJitterPolicy', () => {

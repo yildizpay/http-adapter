@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { FixedDelayPolicy } from '../../../src/resilience/policies/fixed-delay.retry-policy';
 
 describe('FixedDelayPolicy', () => {

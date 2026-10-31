@@ -1,5 +1,5 @@
-import { HttpMethod } from '../common/enums/http-method.enum';
-import { HttpBody } from '../common/types/http.types';
+import type { HttpMethod } from '../common/enums/http-method.enum';
+import type { HttpBody } from '../common/types/http.types';
 
 export interface HttpClientRequestConfig {
   url: string;

@@ -12,7 +12,7 @@ export class ExponentialBackoffPolicy extends RetryPolicy {
   }
 
   public backoffMs(attempt: number): number {
-    const base = Math.pow(2, attempt) * 100;
+    const base = 2 ** attempt * 100;
     const jitter = Math.random() * 50;
     return base + jitter;
   }

@@ -1,7 +1,7 @@
-import { CircuitState } from './circuit-state.enum';
-import { CircuitBreakerOptions } from './circuit-breaker-options';
 import { CircuitBreakerOpenException } from '../../exceptions/circuit-breaker-open.exception';
-import { CircuitBreakerObserver } from '../../observability/circuit-breaker-observer';
+import type { CircuitBreakerObserver } from '../../observability/circuit-breaker-observer';
+import type { CircuitBreakerOptions } from './circuit-breaker-options';
+import { CircuitState } from './circuit-state.enum';
 
 /**
  * A classic Circuit Breaker implementation using a three-state machine (CLOSED → OPEN → HALF_OPEN).

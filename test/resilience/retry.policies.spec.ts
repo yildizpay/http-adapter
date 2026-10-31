@@ -1,9 +1,10 @@
-import { RetryPolicies } from '../../src/resilience/retry.policies';
+import { describe, expect, it } from 'vitest';
+import { DecorrelatedJitterPolicy } from '../../src/resilience/policies/decorrelated-jitter.retry-policy';
 import { ExponentialBackoffPolicy } from '../../src/resilience/policies/exponential-backoff.retry-policy';
 import { FixedDelayPolicy } from '../../src/resilience/policies/fixed-delay.retry-policy';
-import { LinearBackoffPolicy } from '../../src/resilience/policies/linear-backoff.retry-policy';
 import { FullJitterPolicy } from '../../src/resilience/policies/full-jitter.retry-policy';
-import { DecorrelatedJitterPolicy } from '../../src/resilience/policies/decorrelated-jitter.retry-policy';
+import { LinearBackoffPolicy } from '../../src/resilience/policies/linear-backoff.retry-policy';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
 
 describe('RetryPolicies', () => {
   it('should return an ExponentialBackoffPolicy', () => {

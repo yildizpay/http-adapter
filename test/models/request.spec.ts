@@ -1,5 +1,6 @@
-import { Request } from '../../src/models/request';
+import { describe, expect, it } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import { Request } from '../../src/models/request';
 
 describe('Request', () => {
   const baseUrl = 'https://api.example.com';
@@ -55,7 +56,7 @@ describe('Request', () => {
     it('should add new header', () => {
       const request = new Request(baseUrl, endpoint);
       request.addHeader('Authorization', 'Bearer token');
-      expect(request.headers['Authorization']).toBe('Bearer token');
+      expect(request.headers.Authorization).toBe('Bearer token');
     });
   });
 
@@ -63,7 +64,7 @@ describe('Request', () => {
     it('should add new query parameter', () => {
       const request = new Request(baseUrl, endpoint);
       request.addQueryParam('page', '1');
-      expect(request.queryParams['page']).toBe('1');
+      expect(request.queryParams.page).toBe('1');
     });
   });
 

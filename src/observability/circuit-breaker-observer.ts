@@ -1,4 +1,4 @@
-import { CircuitState } from '../resilience/circuit-breaker/circuit-state.enum';
+import type { CircuitState } from '../resilience/circuit-breaker/circuit-state.enum';
 
 /**
  * A read-only observer for `CircuitBreaker` state and execution events.

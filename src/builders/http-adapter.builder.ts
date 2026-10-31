@@ -1,14 +1,14 @@
+import type { HttpClientContract } from '../contracts/http-client.contract';
+import type { HttpInterceptor } from '../contracts/http-interceptor.contract';
+import type { RetryPolicy } from '../contracts/retry-policy.contract';
 import { HttpAdapter } from '../core/http.adapter';
-import { HttpInterceptor } from '../contracts/http-interceptor.contract';
-import { RetryPolicy } from '../contracts/retry-policy.contract';
-import { HttpClientContract } from '../contracts/http-client.contract';
-import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
-import { CircuitBreakerOptions } from '../resilience/circuit-breaker/circuit-breaker-options';
 import {
-  CorrelationIdConfig,
+  type CorrelationIdConfig,
   DEFAULT_CORRELATION_ID_HEADER,
 } from '../models/correlation-id-config';
-import { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import type { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
+import type { CircuitBreakerOptions } from '../resilience/circuit-breaker/circuit-breaker-options';
 
 /**
  * A fluent builder for constructing a fully configured `HttpAdapter` instance.
