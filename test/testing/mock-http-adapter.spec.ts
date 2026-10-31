@@ -794,6 +794,18 @@ describe('MockHttpAdapter', () => {
       expect(() => adapter.assertCalledWithBody(0, { AMOUNT: '100' })).not.toThrow();
     });
 
+    it('should match array values in the body', async () => {
+      adapter.mockResolvedValue({});
+      await adapter.send(
+        makeRequestWithBody('/cart', { items: [{ sku: 'A1', qty: 2 }], tags: ['gift'] }),
+      );
+
+      expect(() => adapter.assertCalledWithBody(0, { tags: ['gift'] })).not.toThrow();
+      expect(() => adapter.assertCalledWithBody(0, { items: [{ sku: 'B2' }] })).toThrow(
+        'body did not match',
+      );
+    });
+
     it('should support deep equality for nested body values', async () => {
       adapter.mockResolvedValue({});
       await adapter.send(makeRequestWithBody('/payments', { data: { AMOUNT: '100' } }));
@@ -820,48 +832,63 @@ describe('MockHttpAdapter', () => {
     });
   });
 
-  describe('assertNthCalledWith', () => {
-    it('should not throw when the nth call matches (1-based)', async () => {
+  describe('assertCallAt', () => {
+    it('should not throw when the call at the zero-based index matches', async () => {
       adapter.mockResolvedValue({});
       await adapter.send(makeRequest('/first'));
       await adapter.send(makeRequest('/second'));
 
-      expect(() => adapter.assertNthCalledWith(2, '/second')).not.toThrow();
+      expect(() => adapter.assertCallAt(0, '/first')).not.toThrow();
+      expect(() => adapter.assertCallAt(1, '/second')).not.toThrow();
     });
 
-    it('should support matchers for the nth call', async () => {
+    it('should use the same index as getCall()', async () => {
+      adapter.mockResolvedValue({});
+      await adapter.send(makeRequest('/first'));
+      await adapter.send(makeRequest('/second'));
+
+      expect(adapter.getCall(1).endpoint).toBe('/second');
+      expect(() => adapter.assertCallAt(1, adapter.getCall(1).endpoint)).not.toThrow();
+    });
+
+    it('should support matchers', async () => {
       adapter.mockResolvedValue({});
       await adapter.send(makeRequest('/payments', HttpMethod.GET));
       await adapter.send(makeRequest('/payments', HttpMethod.POST));
 
-      expect(() =>
-        adapter.assertNthCalledWith(2, '/payments', { method: HttpMethod.POST }),
-      ).not.toThrow();
+      expect(() => adapter.assertCallAt(1, '/payments', { method: HttpMethod.POST })).not.toThrow();
     });
 
-    it('should throw when the nth call does not exist', async () => {
+    it('should throw when no call exists at the index', async () => {
       adapter.mockResolvedValue({});
       await adapter.send(makeRequest());
 
-      expect(() => adapter.assertNthCalledWith(3, '/test')).toThrow(
-        'Expected call #3 but only 1 call(s) were made',
-      );
+      expect(() => adapter.assertCallAt(1, '/test')).toThrow('No call at index 1. Total calls: 1.');
     });
 
-    it('should throw when the nth call does not match', async () => {
+    it('should throw when the call does not match', async () => {
       adapter.mockResolvedValue({});
       await adapter.send(makeRequest('/first'));
 
-      expect(() => adapter.assertNthCalledWith(1, '/second')).toThrow('Call #1 did not match');
+      expect(() => adapter.assertCallAt(0, '/second')).toThrow('Call at index 0 did not match');
     });
 
-    it('should include matchers in the error message when nth call does not match', async () => {
+    it('should include matchers in the error message when the call does not match', async () => {
       adapter.mockResolvedValue({});
       await adapter.send(makeRequest('/payments', HttpMethod.GET));
 
-      expect(() =>
-        adapter.assertNthCalledWith(1, '/payments', { method: HttpMethod.POST }),
-      ).toThrow(JSON.stringify({ method: HttpMethod.POST }));
+      expect(() => adapter.assertCallAt(0, '/payments', { method: HttpMethod.POST })).toThrow(
+        JSON.stringify({ method: HttpMethod.POST }),
+      );
+    });
+
+    it('should not match when matchers are absent and endpoint differs', async () => {
+      adapter.mockResolvedValue({});
+      await adapter.send(makeRequest('/payments', HttpMethod.GET));
+
+      expect(() => adapter.assertCallAt(0, '/other')).toThrow(
+        'Expected: "/other"\nActual: GET /payments',
+      );
     });
   });
 

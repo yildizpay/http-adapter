@@ -709,26 +709,23 @@ export class MockHttpAdapter implements HttpAdapterContract {
   }
 
   /**
-   * Asserts that the `n`-th call (1-based) was made to the given endpoint
+   * Asserts that the call at the given zero-based index was made to the given endpoint
    * and optionally matches the given matchers.
    *
-   * @param n - 1-based index of the call to assert.
+   * Like `getCall()` and `assertCalledWithBody()`, the index is zero-based:
+   * `assertCallAt(0, …)` checks the first call.
+   *
+   * @param index - Zero-based index of the call to assert.
    * @param endpoint - The expected endpoint path.
    * @param matchers - Optional partial matchers to check request properties.
-   * @throws {Error} If the n-th call does not exist or does not match.
+   * @throws {Error} If no call exists at that index or it does not match.
    */
-  assertNthCalledWith(n: number, endpoint: string, matchers?: RequestMatcher): void {
-    const call = this.calls[n - 1];
-
-    if (!call) {
-      throw new Error(
-        `MockHttpAdapter: Expected call #${n} but only ${this.calls.length} call(s) were made.`,
-      );
-    }
+  assertCallAt(index: number, endpoint: string, matchers?: RequestMatcher): void {
+    const call = this.getCall(index);
 
     if (!matchesRequest(call, endpoint, matchers)) {
       throw new Error(
-        `MockHttpAdapter: Call #${n} did not match.\n` +
+        `MockHttpAdapter: Call at index ${index} did not match.\n` +
           `Expected: "${endpoint}"` +
           (matchers === undefined ? '' : ` ${JSON.stringify(matchers)}`) +
           `\nActual: ${call.method} ${call.endpoint}`,

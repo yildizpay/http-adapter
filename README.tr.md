@@ -66,15 +66,16 @@ const adapter = HttpAdapter.builder()
   .build();
 ```
 
-Tek seferlik kurulum için `HttpAdapter.create()` de kullanılabilir.
+Yapılandırma zaten bir nesnedeyse `HttpAdapter.create()` aynı seçenekleri alır. Seçeneklerin hepsi opsiyoneldir.
 
 ```typescript
-const adapter = HttpAdapter.create(
-  [new AuthInterceptor()],
-  RetryPolicies.exponential(3),
-  undefined,                    // Opsiyonel custom HTTP client
-  new CircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 60000 }),
-);
+const adapter = HttpAdapter.create({
+  interceptors: [new AuthInterceptor()],
+  retryPolicy: RetryPolicies.exponential(3),
+  circuitBreaker: { failureThreshold: 5, resetTimeoutMs: 60000 }, // veya bir CircuitBreaker örneği
+  correlationId: { enabled: true },
+  // httpClient, observer
+});
 ```
 
 ### 3. Request Gönderme
@@ -355,13 +356,13 @@ Ağ kararsızlığı kaçınılmazdır. Bu adaptör, sağlam retry stratejileri 
 
 | Policy | Factory | Davranış |
 |---|---|---|
-| Exponential Backoff | `RetryPolicies.exponential(attempts)` | Her denemede gecikme iki katına çıkar, küçük jitter eklenir — varsayılan seçim |
-| Fixed Delay | `RetryPolicies.fixedDelay(attempts, delayMs)` | Her retry arasında sabit bekleme süresi |
-| Linear Backoff | `RetryPolicies.linearBackoff(attempts, stepMs)` | Gecikme doğrusal büyür (`attempt × stepMs`) |
-| Full Jitter | `RetryPolicies.fullJitter(attempts, baseMs)` | Üstel cap içinde tamamen rastgele gecikme — concurrent yükü yaymak için en iyi seçim |
-| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | `baseMs` ile her retry'da üç katına çıkan bir üst sınır arasında rastgele gecikme; concurrent istemciler arasında geniş yayılım |
+| Exponential Backoff | `RetryPolicies.exponential(maxAttempts)` | Her denemede gecikme iki katına çıkar, küçük jitter eklenir — varsayılan seçim |
+| Fixed Delay | `RetryPolicies.fixedDelay(maxAttempts, delayMs)` | Her retry arasında sabit bekleme süresi |
+| Linear Backoff | `RetryPolicies.linearBackoff(maxAttempts, stepMs)` | Gecikme doğrusal büyür (`attempt × stepMs`) |
+| Full Jitter | `RetryPolicies.fullJitter(maxAttempts, baseMs)` | Üstel cap içinde tamamen rastgele gecikme — concurrent yükü yaymak için en iyi seçim |
+| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(maxAttempts, baseMs, maxDelayMs)` | `baseMs` ile her retry'da üç katına çıkan bir üst sınır arasında rastgele gecikme; concurrent istemciler arasında geniş yayılım |
 
-> **`attempts`, ilk çağrı dahil toplam deneme sayısıdır.** `RetryPolicies.exponential(3)` isteği en fazla 3 kez gönderir: ilk çağrı ve 2 retry.
+> **`maxAttempts`, ilk çağrı dahil toplam deneme sayısıdır.** `RetryPolicies.exponential(3)` isteği en fazla 3 kez gönderir: ilk çağrı ve 2 retry.
 
 *n*. retry'dan önceki gecikme (ilk retry için n = 1):
 
@@ -724,9 +725,9 @@ adapter.onEndpoint('/api/payments')
 adapter.assertCalledTimes(2);
 adapter.assertCalledWith('/api/payments', { method: HttpMethod.POST });
 adapter.assertCalledWithBody(0, { AMOUNT: '100', CURRENCY: 'TRY' });
-adapter.assertNthCalledWith(1, '/api/payments');
+adapter.assertCallAt(0, '/api/payments');      // getCall() gibi sıfır tabanlı
 adapter.assertLastCalledWith('/api/refunds');
-adapter.assertCallOrder('/api/payments', '/api/refunds');
+adapter.assertCallOrder(['/api/payments', '/api/refunds']);
 adapter.assertNotCalled();
 
 // Kısayol getter'lar

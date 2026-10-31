@@ -62,7 +62,23 @@ describe('serializeRequestBody', () => {
           data: { card: { number: '4111' } },
         }),
       ),
-    ).toThrow(/nested object at "card"/);
+    ).toThrow(/nested object or array at "card"/);
+  });
+
+  it('rejects arrays for form encoding', () => {
+    expect(() =>
+      serializeRequestBody(
+        config({
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          data: { ids: [1, 2] },
+        }),
+      ),
+    ).toThrow(/nested object or array at "ids"/);
+  });
+
+  it('serializes arrays and nested arrays as JSON', () => {
+    const data = { items: [{ sku: 'A1', qty: 2, tags: ['x', 'y'] }], matrix: [[1, 2], [3]] };
+    expect(serializeRequestBody(config({ data }))).toBe(JSON.stringify(data));
   });
 
   it('rejects object bodies for other media types', () => {

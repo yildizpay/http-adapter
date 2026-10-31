@@ -27,17 +27,13 @@ describe('HttpAdapterObserver', () => {
         },
       };
 
-      const adapter = HttpAdapter.create(
-        [],
-        undefined,
-        mockClient(async () => {
+      const adapter = HttpAdapter.create({
+        httpClient: mockClient(async () => {
           order.push('http:call');
           return { data: {}, status: 200, headers: {} };
         }),
-        undefined,
-        undefined,
-        observer,
-      );
+        observer: observer,
+      });
 
       await adapter.send(makeRequest());
       expect(order).toEqual(['observer:start', 'http:call']);
@@ -56,14 +52,10 @@ describe('HttpAdapterObserver', () => {
         },
       };
 
-      const adapter = HttpAdapter.create(
-        [],
-        undefined,
-        mockClient(async () => ({ data: { ok: true }, status: 200, headers: {} })),
-        undefined,
-        undefined,
-        observer,
-      );
+      const adapter = HttpAdapter.create({
+        httpClient: mockClient(async () => ({ data: { ok: true }, status: 200, headers: {} })),
+        observer: observer,
+      });
 
       const response = await adapter.send(makeRequest());
       expect(capturedResponse).toBe(response);
@@ -74,16 +66,12 @@ describe('HttpAdapterObserver', () => {
       const onRequestSuccess = vi.fn();
       const observer: HttpAdapterObserver = { onRequestSuccess };
 
-      const adapter = HttpAdapter.create(
-        [],
-        undefined,
-        mockClient(async () => {
+      const adapter = HttpAdapter.create({
+        httpClient: mockClient(async () => {
           throw new TimeoutException();
         }),
-        undefined,
-        undefined,
-        observer,
-      );
+        observer: observer,
+      });
 
       await expect(adapter.send(makeRequest())).rejects.toThrow();
       expect(onRequestSuccess).not.toHaveBeenCalled();
@@ -102,16 +90,12 @@ describe('HttpAdapterObserver', () => {
         },
       };
 
-      const adapter = HttpAdapter.create(
-        [],
-        undefined,
-        mockClient(async () => {
+      const adapter = HttpAdapter.create({
+        httpClient: mockClient(async () => {
           throw new TimeoutException();
         }),
-        undefined,
-        undefined,
-        observer,
-      );
+        observer: observer,
+      });
 
       await expect(adapter.send(makeRequest())).rejects.toThrow();
       expect(capturedError).toBeInstanceOf(BaseAdapterException);
@@ -122,14 +106,10 @@ describe('HttpAdapterObserver', () => {
       const onRequestFailure = vi.fn();
       const observer: HttpAdapterObserver = { onRequestFailure };
 
-      const adapter = HttpAdapter.create(
-        [],
-        undefined,
-        mockClient(async () => ({ data: {}, status: 200, headers: {} })),
-        undefined,
-        undefined,
-        observer,
-      );
+      const adapter = HttpAdapter.create({
+        httpClient: mockClient(async () => ({ data: {}, status: 200, headers: {} })),
+        observer: observer,
+      });
 
       await adapter.send(makeRequest());
       expect(onRequestFailure).not.toHaveBeenCalled();
@@ -146,18 +126,15 @@ describe('HttpAdapterObserver', () => {
       };
 
       let callCount = 0;
-      const adapter = HttpAdapter.create(
-        [],
-        RetryPolicies.fixedDelay(3, 0),
-        mockClient(async () => {
+      const adapter = HttpAdapter.create({
+        retryPolicy: RetryPolicies.fixedDelay(3, 0),
+        httpClient: mockClient(async () => {
           callCount++;
           if (callCount < 3) throw new TimeoutException();
           return { data: {}, status: 200, headers: {} };
         }),
-        undefined,
-        undefined,
-        observer,
-      );
+        observer: observer,
+      });
 
       await adapter.send(makeRequest());
       expect(retryCalls).toHaveLength(2);
@@ -169,16 +146,12 @@ describe('HttpAdapterObserver', () => {
       const onRetry = vi.fn();
       const observer: HttpAdapterObserver = { onRetry };
 
-      const adapter = HttpAdapter.create(
-        [],
-        undefined,
-        mockClient(async () => {
+      const adapter = HttpAdapter.create({
+        httpClient: mockClient(async () => {
           throw new TimeoutException();
         }),
-        undefined,
-        undefined,
-        observer,
-      );
+        observer: observer,
+      });
 
       await expect(adapter.send(makeRequest())).rejects.toThrow();
       expect(onRetry).not.toHaveBeenCalled();

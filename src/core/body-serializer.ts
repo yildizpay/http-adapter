@@ -21,7 +21,7 @@ const FORM_URLENCODED = 'application/x-www-form-urlencoded';
  * - A `rawBody` (set via `RequestBuilder.setRawBody()`) is sent as-is.
  * - DELETE and OPTIONS only send a structured body when it has content.
  * - The structured body is encoded according to the `Content-Type` header:
- *   - `application/x-www-form-urlencoded` → `a=1&b=2` (flat objects only)
+ *   - `application/x-www-form-urlencoded` → `a=1&b=2` (flat objects only: no nested objects or arrays)
  *   - JSON (`application/json`, `*+json`) or no Content-Type → `JSON.stringify`
  *   - any other type (e.g. XML) → throws; serialize it yourself and use `setRawBody()`
  *
@@ -55,7 +55,7 @@ function encodeForm(data: HttpBody): string {
     if (value === undefined || value === null) continue;
     if (typeof value === 'object') {
       throw new TypeError(
-        `Cannot form-urlencode nested object at "${key}". Flatten the body or use JSON.`,
+        `Cannot form-urlencode the nested object or array at "${key}". Flatten the body or use JSON.`,
       );
     }
     params.append(key, String(value));
