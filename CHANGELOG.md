@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.11.0] - 2026-10-31
+
+This release fixes transport-level bugs found by a new integration test suite that runs the default `fetch` client against a real HTTP server. No public API was removed or renamed.
+
+### Added
+
+- **`RequestBuilder.setRawBody(body: string)`**: sends a pre-serialized body (XML, SOAP, signed payloads) exactly as given. It takes precedence over a structured body; `setBody()` clears it. `Request` and `HttpClientRequestConfig` gain an optional `rawBody` field. ([#36](https://github.com/yildizpay/http-adapter/issues/36))
+- **`serializeRequestBody(config)`**: the single exported function that encodes request bodies according to `Content-Type`. Custom `HttpClientContract` implementations can use it to send the same bytes as the default client. ([#36](https://github.com/yildizpay/http-adapter/issues/36))
+- **`NetworkExceptionFactory.resolveCode(error)`**: returns the first error code found on an error or its `cause` chain. ([#34](https://github.com/yildizpay/http-adapter/issues/34))
+- **`RetryPolicy.retryOn(error, context?)`** and **`RetryExecutor.execute(operation, context?)`**: accept an optional `RetryContext` (`{ method }`). Existing subclasses and callers keep working. ([#34](https://github.com/yildizpay/http-adapter/issues/34))
+- Integration test suite under `test/integration/`. ([#33](https://github.com/yildizpay/http-adapter/issues/33))
+
+### Fixed
+
+- **Network errors from native `fetch` are classified.** undici puts the system error on `cause`, so `ConnectionRefusedException`, `SocketResetException`, `DnsResolutionException` and `HostUnreachableException` were never produced and retries never fired for them. The whole `cause` chain is now inspected. undici codes are mapped too: `UND_ERR_CONNECT_TIMEOUT`, `UND_ERR_HEADERS_TIMEOUT` and `UND_ERR_BODY_TIMEOUT` become `TimeoutException`, and `UND_ERR_SOCKET` and `EPIPE` become `SocketResetException`. ([#34](https://github.com/yildizpay/http-adapter/issues/34))
+- **Timeouts under Jest are classified as `TimeoutException`.** Errors are now recognised by shape instead of `instanceof Error`, so undici's abort `DOMException` from another VM realm is handled. ([#34](https://github.com/yildizpay/http-adapter/issues/34))
+- **A truncated response no longer resolves as success.** If the connection dropped while the body was being read, the request resolved with `status: 200` and `data: null`. It now fails with a network exception. ([#64](https://github.com/yildizpay/http-adapter/issues/64))
+- **Errors from the default client carry `requestContext`** (method, url, correlationId). ([#35](https://github.com/yildizpay/http-adapter/issues/35))
+- **Request bodies follow `Content-Type`.** `asFormUrlEncoded()` now sends `a=1&b=2` instead of JSON. ([#36](https://github.com/yildizpay/http-adapter/issues/36))
+- **The base URL path is kept.** `https://api/v1` + `/users` now goes to `/v1/users` instead of `/users`. Query parameters are merged into a query string on the endpoint instead of replacing it. ([#37](https://github.com/yildizpay/http-adapter/issues/37))
+- **Requests built from one `RequestBuilder` no longer share state.** Headers, query params, body (deep copy), options, validators, correlation config and overrides are copied on every `build()`, so an `Authorization` header or correlation ID written to one request no longer leaks into another. ([#38](https://github.com/yildizpay/http-adapter/issues/38))
+- **DELETE and OPTIONS no longer send `"{}"`** when no body was set. ([#39](https://github.com/yildizpay/http-adapter/issues/39))
+- **Errors thrown by request interceptors are converted** and passed through error interceptors. `observer.onRequestFailure` is now called for every failure. ([#40](https://github.com/yildizpay/http-adapter/issues/40))
+- **`+json` media types are parsed as JSON**, for example `application/problem+json` and `application/vnd.api+json`. ([#41](https://github.com/yildizpay/http-adapter/issues/41))
+- **Headers are handled case-insensitively**, and `Content-Type` is only sent with a body. A lowercase `content-type` override no longer produces `application/json, text/plain`. ([#42](https://github.com/yildizpay/http-adapter/issues/42))
+- **Circuit breaker: calls admitted before a state transition are ignored when they settle.** Such calls could release the HALF_OPEN probe slot, decide the probe's outcome, or re-open a closed circuit. ([#43](https://github.com/yildizpay/http-adapter/issues/43))
+- Documentation:
+  - `attempts` is the total number of calls including the first, and `decorrelatedJitter` is stateless. ([#44](https://github.com/yildizpay/http-adapter/issues/44))
+  - `onError` return vs. throw semantics. ([#45](https://github.com/yildizpay/http-adapter/issues/45))
+
+### Behaviour changes to be aware of
+
+- **POST and PATCH are not retried after a connection reset** (`SocketResetException`) unless a custom `retryIf()` predicate allows it. The server may already have processed the request. Before this release resets were not classified at all, so they were never retried.
+- **Connection-level failures are retried by default** because they are now classified: refused connections, resets on idempotent methods, and connect timeouts.
+- **An object body with a non-JSON, non-form `Content-Type` now fails** before anything is sent. Use `setRawBody()` instead. Before this release the body was silently sent as JSON.
+- **A JSON response that fails to parse is returned as raw text** instead of `null`.
+- **Query params from `addQueryParam()` are merged** into a query string already on the endpoint.
+
 ## [3.10.0] - 2026-04-04
 
 ### Added
