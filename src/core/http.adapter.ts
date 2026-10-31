@@ -293,6 +293,7 @@ export class HttpAdapter implements HttpAdapterContract {
       url: url.toString(),
       method: request.method,
       data: request.body,
+      rawBody: request.rawBody,
       headers: request.headers,
       timeout: request.options?.timeout,
     });

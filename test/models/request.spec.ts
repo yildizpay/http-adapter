@@ -88,5 +88,24 @@ describe('Request', () => {
       expect(debug).toHaveProperty('queryParams');
       expect(debug).toHaveProperty('body');
     });
+
+    it('should include rawBody only when set', () => {
+      expect(new Request(baseUrl, endpoint).toDebugObject()).not.toHaveProperty('rawBody');
+
+      const withRaw = new Request(
+        baseUrl,
+        endpoint,
+        HttpMethod.POST,
+        {},
+        {},
+        null,
+        undefined,
+        [],
+        undefined,
+        undefined,
+        '<x/>',
+      );
+      expect(withRaw.toDebugObject()).toHaveProperty('rawBody', '<x/>');
+    });
   });
 });

@@ -6,6 +6,12 @@ export interface HttpClientRequestConfig {
   method: HttpMethod;
   headers?: Record<string, string>;
   data?: HttpBody | null;
+  /**
+   * A pre-serialized body (e.g. XML) set via `RequestBuilder.setRawBody()`.
+   * When present it is sent as-is instead of `data`. Use `serializeRequestBody()`
+   * to apply the same encoding rules as the default client.
+   */
+  rawBody?: string;
   timeout?: number;
 }
 

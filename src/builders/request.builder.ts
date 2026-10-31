@@ -25,6 +25,7 @@ export class RequestBuilder {
     'Content-Type': 'application/json',
   };
   private body: HttpBody = {};
+  private rawBody: string | undefined;
   private queryParams: Record<string, string> = {};
   private options: RequestOptions;
   private readonly validators: ResponseValidator[] = [];
@@ -104,6 +105,27 @@ export class RequestBuilder {
    */
   public setBody(body: HttpBody): this {
     this.body = body;
+    this.rawBody = undefined;
+    return this;
+  }
+
+  /**
+   * Sets a pre-serialized request body, sent exactly as given.
+   *
+   * Use this for payloads the adapter cannot encode from an object, such as XML or SOAP,
+   * and set the matching Content-Type (e.g. `asXml()`). A raw body takes precedence over
+   * any structured body; calling `setBody()` afterwards clears it.
+   *
+   * @example
+   * ```typescript
+   * builder.asXml().setRawBody('<CC5Request><Name>api</Name></CC5Request>');
+   * ```
+   *
+   * @param body - The serialized body.
+   * @returns The current builder instance.
+   */
+  public setRawBody(body: string): this {
+    this.rawBody = body;
     return this;
   }
 
@@ -436,6 +458,7 @@ export class RequestBuilder {
       [...this.validators],
       this.correlationIdConfig ? { ...this.correlationIdConfig } : undefined,
       Object.keys(this.overrides).length > 0 ? this.copyOverrides() : undefined,
+      this.rawBody,
     );
   }
 
