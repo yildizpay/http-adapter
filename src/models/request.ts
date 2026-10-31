@@ -4,6 +4,7 @@ import { RequestOptions } from './request-options';
 import { ResponseValidator } from '../contracts/response-validator.contract';
 import { CorrelationIdConfig } from './correlation-id-config';
 import { RequestOverrides } from './request-overrides';
+import { setHeader } from '../common/utils/headers';
 
 /**
  * Represents an HTTP request.
@@ -69,7 +70,7 @@ export class Request {
    * @param value - The value of the header.
    */
   public addHeader(key: string, value: string) {
-    this.headers[key] = value;
+    setHeader(this.headers, key, value);
   }
 
   /**

@@ -246,13 +246,13 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('headers (#42)', () => {
-    it.failing('does not send Content-Type on a GET without a body', async () => {
+    it('does not send Content-Type on a GET without a body', async () => {
       await adapter.send(request().setEndpoint('/').setMethod(HttpMethod.GET).build());
 
       expect(server.lastRequest.headers['content-type']).toBeUndefined();
     });
 
-    it.failing('lets a lowercase content-type override the default', async () => {
+    it('lets a lowercase content-type override the default', async () => {
       await adapter.send(
         request().setEndpoint('/').addHeader('content-type', 'text/plain').setBody({}).build(),
       );

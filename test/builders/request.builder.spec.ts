@@ -139,6 +139,30 @@ describe('RequestBuilder', () => {
     });
   });
 
+  describe('Header case-insensitivity', () => {
+    it('should replace the default Content-Type with a lowercase override', () => {
+      const request = builder.addHeader('content-type', 'text/plain').build();
+
+      expect(request.headers).toEqual({ 'content-type': 'text/plain' });
+    });
+
+    it('should remove a header regardless of case', () => {
+      expect(builder.removeHeader('content-type').build().headers).toEqual({});
+    });
+
+    it('should merge headers case-insensitively', () => {
+      const request = builder.addHeaders({ 'CONTENT-TYPE': 'text/xml', 'X-A': '1' }).build();
+
+      expect(request.headers).toEqual({ 'CONTENT-TYPE': 'text/xml', 'X-A': '1' });
+    });
+
+    it('should let content-type helpers replace a lowercase header', () => {
+      const request = builder.addHeader('content-type', 'text/plain').asXml().build();
+
+      expect(request.headers).toEqual({ 'Content-Type': 'text/xml' });
+    });
+  });
+
   describe('Header Management (Batch)', () => {
     it('should add multiple headers', () => {
       const request = builder.addHeaders({ H1: '1', H2: '2' }).build();

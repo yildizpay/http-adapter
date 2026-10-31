@@ -1,5 +1,6 @@
 import { Response } from '../models/response';
 import { BaseAdapterException } from './base-adapter.exception';
+import { findHeaderKey } from '../common/utils/headers';
 
 export class HttpException<T = unknown> extends BaseAdapterException {
   public readonly response: Response<T>;
@@ -34,7 +35,7 @@ export class HttpException<T = unknown> extends BaseAdapterException {
   public getRetryAfterMs(): number | undefined {
     const headers = this.response.headers;
     if (!headers) return undefined;
-    const key = Object.keys(headers).find((k) => k.toLowerCase() === 'retry-after');
+    const key = findHeaderKey(headers, 'Retry-After');
     const headerValue = key ? headers[key] : undefined;
     if (!headerValue) return undefined;
 

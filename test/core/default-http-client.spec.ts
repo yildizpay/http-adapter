@@ -157,6 +157,53 @@ describe('FetchHttpClient', () => {
     });
   });
 
+  describe('Content-Type header', () => {
+    const okResponse = () => ({
+      ok: true,
+      status: 204,
+      headers: new Headers(),
+      text: jest.fn().mockResolvedValue(''),
+    });
+    const sentHeaders = () => (globalThis.fetch as jest.Mock).mock.calls[0][1].headers;
+
+    it('should not send Content-Type without a body', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+
+      await client.request({
+        url: 'https://api.example.com',
+        method: HttpMethod.GET,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      });
+
+      expect(sentHeaders()).toEqual({ Accept: 'application/json' });
+    });
+
+    it('should keep a caller Content-Type in any case without adding a duplicate', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+
+      await client.request({
+        url: 'https://api.example.com',
+        method: HttpMethod.POST,
+        headers: { 'content-type': 'text/plain' },
+        data: { a: 1 },
+      });
+
+      expect(sentHeaders()).toEqual({ 'content-type': 'text/plain' });
+    });
+
+    it('should default Content-Type to JSON when a body is sent', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+
+      await client.request({
+        url: 'https://api.example.com',
+        method: HttpMethod.POST,
+        data: { a: 1 },
+      });
+
+      expect(sentHeaders()).toEqual({ 'Content-Type': 'application/json' });
+    });
+  });
+
   it('should handle text parse rejection gracefully', async () => {
     const mockResponse = {
       ok: true,
