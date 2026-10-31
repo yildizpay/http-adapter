@@ -1,5 +1,5 @@
 import { HttpMethod } from '../common/enums/http-method.enum';
-import type { HttpBody } from '../common/types/http.types';
+import type { HttpBody, JsonValue } from '../common/types/http.types';
 import { setHeader } from '../common/utils/headers';
 import type { ResponseValidator } from '../contracts/response-validator.contract';
 import type { CorrelationIdConfig } from './correlation-id-config';
@@ -59,7 +59,7 @@ export class Request {
    * @param value - The value of the parameter.
    * @throws Error if the body is null (not initialized).
    */
-  public addParam(key: string, value: string | number | HttpBody) {
+  public addParam(key: string, value: JsonValue) {
     if (this.body == null) throw new Error('Body is not defined');
     this.body[key] = value;
   }
