@@ -28,7 +28,8 @@ import {
 /**
  * End-to-end tests against a real HTTP server using the default fetch client.
  *
- * Tests marked `it.failing` document known bugs; each fix flips its test to `it`.
+ * Each regression test is tagged with the issue it covers. New known bugs are added as
+ * `it.failing` and flipped to `it` by their fix.
  */
 describe('HttpAdapter (integration)', () => {
   let server: TestServer;
@@ -270,7 +271,7 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('request interceptor errors (#40)', () => {
-    it.failing('converts errors thrown by request interceptors', async () => {
+    it('converts errors thrown by request interceptors', async () => {
       const failing = HttpAdapter.builder()
         .withInterceptor({
           onRequest: async () => {

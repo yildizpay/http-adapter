@@ -161,9 +161,12 @@ export class HttpAdapter implements HttpAdapterContract {
       this.observer?.onRequestSuccess?.(response, Date.now() - startTime);
       return response;
     } catch (error) {
-      if (error instanceof BaseAdapterException) {
-        this.observer?.onRequestFailure?.(error, Date.now() - startTime);
-      }
+      // Error interceptors may deliberately throw non-adapter errors; those are rethrown
+      // unchanged, but the observer always receives a BaseAdapterException.
+      this.observer?.onRequestFailure?.(
+        ErrorConverter.toAdapterException(error),
+        Date.now() - startTime,
+      );
       throw error;
     }
   }
@@ -171,17 +174,20 @@ export class HttpAdapter implements HttpAdapterContract {
   /**
    * Orchestrates the full request lifecycle: interceptors → HTTP call → validation → response.
    *
+   * Any failure, including one thrown by a request interceptor, is converted to a
+   * `BaseAdapterException` and passed through the error interceptors.
+   *
    * @private
    */
   private async dispatch<T = unknown>(
     request: Request,
     interceptorGroups: InterceptorGroups,
   ): Promise<Response<T>> {
-    const processedRequest = await this.runRequestInterceptors(request, interceptorGroups.request);
-
+    let processedRequest = request;
     let requestContext: RequestContext | undefined;
 
     try {
+      processedRequest = await this.runRequestInterceptors(request, interceptorGroups.request);
       const url = this.buildRequestUrl(processedRequest);
 
       requestContext = {
@@ -207,11 +213,32 @@ export class HttpAdapter implements HttpAdapterContract {
       );
     } catch (error) {
       const propagatedError = await this.runErrorInterceptors(
-        ErrorConverter.toAdapterException(error, requestContext),
+        ErrorConverter.toAdapterException(
+          error,
+          requestContext ?? this.tryBuildRequestContext(processedRequest),
+        ),
         processedRequest,
         interceptorGroups.error,
       );
       throw propagatedError;
+    }
+  }
+
+  /**
+   * Best-effort request context for failures that happen before the URL was built
+   * (e.g. a request interceptor threw). Returns `undefined` if the URL itself is invalid.
+   *
+   * @private
+   */
+  private tryBuildRequestContext(request: Request): RequestContext | undefined {
+    try {
+      return {
+        method: request.method as string,
+        url: this.buildRequestUrl(request).toString(),
+        correlationId: request.systemCorrelationId,
+      };
+    } catch {
+      return undefined;
     }
   }
 
