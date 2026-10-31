@@ -199,10 +199,18 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('empty bodies (#39)', () => {
-    it.failing('sends DELETE without a body when none was set', async () => {
+    it('sends DELETE without a body when none was set', async () => {
       await adapter.send(request().setEndpoint('/items/1').setMethod(HttpMethod.DELETE).build());
 
       expect(server.lastRequest.bodyText).toBe('');
+    });
+
+    it('still sends an explicit DELETE body', async () => {
+      await adapter.send(
+        request().setEndpoint('/items/1').setMethod(HttpMethod.DELETE).setBody({ a: 1 }).build(),
+      );
+
+      expect(server.lastRequest.bodyText).toBe('{"a":1}');
     });
   });
 
