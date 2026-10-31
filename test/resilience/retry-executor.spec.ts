@@ -1,3 +1,4 @@
+import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { RetryExecutor } from '../../src/resilience/retry-executor';
 import { RetryPolicy } from '../../src/contracts/retry-policy.contract';
 
@@ -25,6 +26,16 @@ describe('RetryExecutor', () => {
     expect(mockPolicy.retryOn).not.toHaveBeenCalled();
   });
 
+  it('should pass the request context to the policy', async () => {
+    const error = new Error('fail');
+    const operation = jest.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
+    mockPolicy.retryOn.mockReturnValue(true);
+
+    await executor.execute(operation, { method: HttpMethod.POST });
+
+    expect(mockPolicy.retryOn).toHaveBeenCalledWith(error, { method: HttpMethod.POST });
+  });
+
   it('should retry on failure if policy allows it', async () => {
     const error = new Error('fail');
     const operation = jest.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
@@ -35,7 +46,7 @@ describe('RetryExecutor', () => {
 
     expect(result).toBe('success');
     expect(operation).toHaveBeenCalledTimes(2);
-    expect(mockPolicy.retryOn).toHaveBeenCalledWith(error);
+    expect(mockPolicy.retryOn).toHaveBeenCalledWith(error, undefined);
     expect(mockPolicy.backoffMs).toHaveBeenCalledWith(1);
   });
 

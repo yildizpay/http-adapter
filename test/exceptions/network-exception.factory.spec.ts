@@ -115,6 +115,89 @@ describe('NetworkExceptionFactory', () => {
   });
 });
 
+describe('NetworkExceptionFactory with native fetch errors', () => {
+  const fetchFailed = (cause: unknown) => Object.assign(new TypeError('fetch failed'), { cause });
+  const systemError = (code: string, message = `connect ${code}`) =>
+    Object.assign(new Error(message), { code });
+
+  it.each([
+    ['ECONNREFUSED', ConnectionRefusedException],
+    ['ECONNRESET', SocketResetException],
+    ['EPIPE', SocketResetException],
+    ['UND_ERR_SOCKET', SocketResetException],
+    ['ENOTFOUND', DnsResolutionException],
+    ['EAI_AGAIN', DnsResolutionException],
+    ['EHOSTUNREACH', HostUnreachableException],
+    ['UND_ERR_CONNECT_TIMEOUT', TimeoutException],
+    ['UND_ERR_HEADERS_TIMEOUT', TimeoutException],
+    ['UND_ERR_BODY_TIMEOUT', TimeoutException],
+  ])('classifies cause.code %s', (code, ExpectedClass) => {
+    const error = NetworkExceptionFactory.createFromNativeError(fetchFailed(systemError(code)));
+
+    expect(error).toBeInstanceOf(ExpectedClass);
+    expect(error.code).toBe(code);
+  });
+
+  it('uses the message of the coded error and keeps the original error as cause', () => {
+    const original = fetchFailed(systemError('ECONNREFUSED', 'connect ECONNREFUSED 127.0.0.1:1'));
+
+    const error = NetworkExceptionFactory.createFromNativeError(original);
+
+    expect(error.message).toBe('connect ECONNREFUSED 127.0.0.1:1');
+    expect(error.cause).toBe(original);
+  });
+
+  it('follows nested causes', () => {
+    const nested = fetchFailed(
+      Object.assign(new Error('outer'), { cause: systemError('ECONNRESET') }),
+    );
+
+    expect(NetworkExceptionFactory.createFromNativeError(nested)).toBeInstanceOf(
+      SocketResetException,
+    );
+  });
+
+  it('stops on cyclic causes', () => {
+    const a: { name: string; message: string; cause?: unknown } = { name: 'Error', message: 'a' };
+    a.cause = { name: 'Error', message: 'b', cause: a };
+
+    expect(NetworkExceptionFactory.createFromNativeError(a)).toBeInstanceOf(NetworkException);
+  });
+
+  it('recognises errors from another realm by shape', () => {
+    const foreignAbort = { name: 'AbortError', message: 'This operation was aborted' };
+
+    expect(NetworkExceptionFactory.createFromNativeError(foreignAbort)).toBeInstanceOf(
+      TimeoutException,
+    );
+  });
+
+  it('classifies a TimeoutError as TimeoutException', () => {
+    const error = Object.assign(new Error('timed out'), { name: 'TimeoutError' });
+
+    expect(NetworkExceptionFactory.createFromNativeError(error)).toBeInstanceOf(TimeoutException);
+  });
+
+  it('falls back to a default message', () => {
+    const error = NetworkExceptionFactory.createFromNativeError({ name: 'Error', message: '' });
+
+    expect(error.message).toBe('Network Error');
+  });
+
+  describe('resolveCode', () => {
+    it('returns a nested code', () => {
+      expect(NetworkExceptionFactory.resolveCode(fetchFailed(systemError('ECONNREFUSED')))).toBe(
+        'ECONNREFUSED',
+      );
+    });
+
+    it('returns undefined for non-errors and errors without a code', () => {
+      expect(NetworkExceptionFactory.resolveCode('boom')).toBeUndefined();
+      expect(NetworkExceptionFactory.resolveCode(new Error('x'))).toBeUndefined();
+    });
+  });
+});
+
 describe('NetworkException Subclasses', () => {
   it('instantiates ConnectionRefusedException with defaults', () => {
     const error = new ConnectionRefusedException();

@@ -144,6 +144,20 @@ describe('ErrorConverter', () => {
   });
 
   describe('network-like error detection (code/name-based)', () => {
+    it('detects a code nested in cause (native fetch)', () => {
+      const error = Object.assign(new TypeError('fetch failed'), {
+        cause: Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }),
+      });
+
+      expect(ErrorConverter.toAdapterException(error)).toBeInstanceOf(ConnectionRefusedException);
+    });
+
+    it('detects a TimeoutError by name', () => {
+      const error = Object.assign(new Error('timed out'), { name: 'TimeoutError' });
+
+      expect(ErrorConverter.toAdapterException(error)).toBeInstanceOf(TimeoutException);
+    });
+
     it('should convert an Error with ECONNREFUSED into ConnectionRefusedException', () => {
       const rawError = new Error('refused');
       (rawError as NodeJS.ErrnoException).code = 'ECONNREFUSED';

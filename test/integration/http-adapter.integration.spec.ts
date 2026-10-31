@@ -84,8 +84,8 @@ describe('HttpAdapter (integration)', () => {
       expect((error as NotFoundException).response.data).toEqual({ error: 'not found' });
     });
 
-    // Under Jest the abort DOMException comes from another realm and fails `instanceof Error` (#34).
-    it.failing('throws TimeoutException when the server is slower than the timeout', async () => {
+    // Under Jest the abort DOMException comes from another realm, so this also covers #34's realm fix.
+    it('throws TimeoutException when the server is slower than the timeout', async () => {
       server.route('/slow', delay(500));
 
       const error = await sendAndCatch(request().setEndpoint('/slow').setTimeout(50).build());
@@ -95,7 +95,7 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('network error classification (#34)', () => {
-    it.failing('classifies a refused connection as ConnectionRefusedException', async () => {
+    it('classifies a refused connection as ConnectionRefusedException', async () => {
       const error = await sendAndCatch(
         request(await refusedUrl())
           .setEndpoint('/')
@@ -106,22 +106,19 @@ describe('HttpAdapter (integration)', () => {
       expect((error as ConnectionRefusedException).code).toBe('ECONNREFUSED');
     });
 
-    it.failing('classifies an unresolvable host as DnsResolutionException', async () => {
+    it('classifies an unresolvable host as DnsResolutionException', async () => {
       const error = await sendAndCatch(request(UNRESOLVABLE_URL).setEndpoint('/').build());
 
       expect(error).toBeInstanceOf(DnsResolutionException);
     });
 
-    it.failing(
-      'classifies a socket closed before the response as SocketResetException',
-      async () => {
-        server.route('/reset', resetBeforeHeaders);
+    it('classifies a socket closed before the response as SocketResetException', async () => {
+      server.route('/reset', resetBeforeHeaders);
 
-        const error = await sendAndCatch(request().setEndpoint('/reset').build());
+      const error = await sendAndCatch(request().setEndpoint('/reset').build());
 
-        expect(error).toBeInstanceOf(SocketResetException);
-      },
-    );
+      expect(error).toBeInstanceOf(SocketResetException);
+    });
 
     it('fails when the connection drops while reading the body (#64)', async () => {
       server.route('/truncated', resetAfterHeaders);
@@ -140,6 +137,37 @@ describe('HttpAdapter (integration)', () => {
       await sendAndCatch(request().setEndpoint('/reset').build(), retrying);
 
       expect(server.requestsTo('/reset')).toHaveLength(1);
+    });
+
+    it('retries a GET whose connection was reset', async () => {
+      server.route('/reset', resetBeforeHeaders);
+      const retrying = HttpAdapter.builder()
+        .withRetryPolicy(RetryPolicies.fixedDelay(3, 1))
+        .build();
+
+      await sendAndCatch(
+        request().setEndpoint('/reset').setMethod(HttpMethod.GET).build(),
+        retrying,
+      );
+
+      expect(server.requestsTo('/reset')).toHaveLength(3);
+    });
+
+    it('retries a refused POST, which never reached the server', async () => {
+      let attempts = 0;
+      const retrying = HttpAdapter.builder()
+        .withRetryPolicy(RetryPolicies.fixedDelay(3, 1))
+        .withObserver({ onRetry: () => attempts++ })
+        .build();
+
+      await sendAndCatch(
+        request(await refusedUrl())
+          .setEndpoint('/')
+          .build(),
+        retrying,
+      );
+
+      expect(attempts).toBe(2);
     });
   });
 

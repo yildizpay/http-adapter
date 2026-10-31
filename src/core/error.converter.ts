@@ -59,7 +59,11 @@ export class ErrorConverter {
         );
       }
 
-      if (errObj.code || errObj.name === 'AbortError') {
+      if (
+        NetworkExceptionFactory.resolveCode(error) ||
+        errObj.name === 'AbortError' ||
+        errObj.name === 'TimeoutError'
+      ) {
         return NetworkExceptionFactory.createFromNativeError(error, requestContext);
       }
 

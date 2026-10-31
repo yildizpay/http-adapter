@@ -1,5 +1,24 @@
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { RetryPredicate } from './retry-predicate.contract';
+import { SocketResetException } from '../exceptions/network.exceptions';
+import { HttpMethod } from '../common/enums/http-method.enum';
+
+/** Methods that are idempotent by definition (RFC 9110 §9.2.2). */
+const IDEMPOTENT_METHODS = new Set<string>([
+  HttpMethod.GET,
+  HttpMethod.HEAD,
+  HttpMethod.OPTIONS,
+  HttpMethod.PUT,
+  HttpMethod.DELETE,
+]);
+
+/**
+ * Information about the request being retried.
+ */
+export interface RetryContext {
+  /** The HTTP method of the request. */
+  method: HttpMethod;
+}
 
 /**
  * Defines the contract for an HTTP retry policy.
@@ -48,12 +67,24 @@ export abstract class RetryPolicy {
    * Delegates to the custom predicate set via `retryIf()` if present,
    * otherwise falls back to `error.isRetryable()`.
    *
+   * Without a custom predicate, a {@link SocketResetException} is not retried for
+   * non-idempotent methods (POST, PATCH): the connection may have dropped after the
+   * server processed the request, so sending it again could duplicate it (e.g. charge
+   * a card twice).
+   *
    * @param error - The error encountered during the request.
+   * @param context - Information about the request, when available.
    * @returns `true` if the request should be retried; otherwise `false`.
    */
-  public retryOn(error: unknown): boolean {
+  public retryOn(error: unknown, context?: RetryContext): boolean {
     if (!(error instanceof BaseAdapterException)) return false;
-    return this.predicate ? this.predicate.shouldRetry(error) : error.isRetryable();
+    if (this.predicate) return this.predicate.shouldRetry(error);
+    if (!error.isRetryable()) return false;
+    return !(
+      context &&
+      error instanceof SocketResetException &&
+      !IDEMPOTENT_METHODS.has(context.method)
+    );
   }
 
   /**
