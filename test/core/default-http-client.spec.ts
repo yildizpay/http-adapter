@@ -101,6 +101,62 @@ describe('FetchHttpClient', () => {
     expect(result.data).toBeNull();
   });
 
+  describe('request body', () => {
+    const okResponse = () => ({
+      ok: true,
+      status: 204,
+      headers: new Headers(),
+      text: jest.fn().mockResolvedValue(''),
+    });
+    const sentBody = () => (globalThis.fetch as jest.Mock).mock.calls[0][1].body;
+
+    it.each([HttpMethod.DELETE, HttpMethod.OPTIONS])(
+      'should not send an empty body with %s',
+      async (method) => {
+        (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+
+        await client.request({ url: 'https://api.example.com', method, data: {} });
+
+        expect(sentBody()).toBeUndefined();
+      },
+    );
+
+    it('should send a non-empty body with DELETE', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+
+      await client.request({
+        url: 'https://api.example.com',
+        method: HttpMethod.DELETE,
+        data: { reason: 'duplicate' },
+      });
+
+      expect(sentBody()).toBe('{"reason":"duplicate"}');
+    });
+
+    it.each([HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH])(
+      'should still send an empty JSON object with %s',
+      async (method) => {
+        (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+
+        await client.request({ url: 'https://api.example.com', method, data: {} });
+
+        expect(sentBody()).toBe('{}');
+      },
+    );
+
+    it('should never send a body with HEAD', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+
+      await client.request({
+        url: 'https://api.example.com',
+        method: HttpMethod.HEAD,
+        data: { a: 1 },
+      });
+
+      expect(sentBody()).toBeUndefined();
+    });
+  });
+
   it('should handle text parse rejection gracefully', async () => {
     const mockResponse = {
       ok: true,

@@ -6,6 +6,11 @@ import {
 import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
 import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import { HttpMethod } from '../common/enums/http-method.enum';
+import { HttpBody } from '../common/types/http.types';
+
+/** Methods whose requests carry a body by definition; an empty body is still sent for them. */
+const BODY_METHODS = new Set<string>([HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH]);
 
 /**
  * The default HTTP client instance based on native Fetch API (Node 18+).
@@ -31,10 +36,7 @@ export class FetchHttpClient implements HttpClientContract {
           'Content-Type': 'application/json',
           ...config.headers,
         },
-        body:
-          config.method !== 'GET' && config.method !== 'HEAD' && config.data
-            ? JSON.stringify(config.data)
-            : undefined,
+        body: FetchHttpClient.serializeBody(config.method, config.data),
         signal: controller.signal,
       });
 
@@ -74,6 +76,17 @@ export class FetchHttpClient implements HttpClientContract {
         clearTimeout(timeoutId);
       }
     }
+  }
+
+  /**
+   * Serializes the request body. GET and HEAD never carry a body. Other methods without
+   * body semantics (DELETE, OPTIONS) only send one when it has content, so a request that
+   * never set a body does not send `"{}"`.
+   */
+  private static serializeBody(method: HttpMethod, data?: HttpBody | null): string | undefined {
+    if (method === HttpMethod.GET || method === HttpMethod.HEAD || !data) return undefined;
+    if (!BODY_METHODS.has(method) && Object.keys(data).length === 0) return undefined;
+    return JSON.stringify(data);
   }
 }
 
