@@ -1,7 +1,7 @@
 import { defaultHttpClient, FetchHttpClient } from '../../src/core/default-http-client';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
-import { TimeoutException } from '../../src/exceptions/network.exceptions';
+import { NetworkException, TimeoutException } from '../../src/exceptions/network.exceptions';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 
 describe('FetchHttpClient', () => {
@@ -234,21 +234,18 @@ describe('FetchHttpClient', () => {
     });
   });
 
-  it('should handle text parse rejection gracefully', async () => {
+  it('should throw a NetworkException when reading the body fails', async () => {
     const mockResponse = {
       ok: true,
       status: 200,
-      headers: new Headers({ 'content-type': 'text/plain' }),
-      text: jest.fn().mockRejectedValue(new Error('Invalid Text Stream')),
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: jest.fn().mockRejectedValue(new TypeError('terminated')),
     };
     (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
 
-    const result = await client.request({
-      url: 'https://api.example.com',
-      method: HttpMethod.GET,
-    });
-
-    expect(result.data).toBeNull();
+    await expect(
+      client.request({ url: 'https://api.example.com', method: HttpMethod.GET }),
+    ).rejects.toBeInstanceOf(NetworkException);
   });
 
   it('should abort and throw BaseAdapterException on timeout', async () => {
