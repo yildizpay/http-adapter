@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { deleteHeader, findHeaderKey, setHeader } from '../../src/common/utils/headers';
 
 describe('header helpers', () => {

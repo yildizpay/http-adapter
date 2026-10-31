@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { RetryPolicies } from '../../src/resilience/retry.policies';
 import { ExponentialBackoffPolicy } from '../../src/resilience/policies/exponential-backoff.retry-policy';
 import { FixedDelayPolicy } from '../../src/resilience/policies/fixed-delay.retry-policy';

@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { MockHttpAdapter } from '../../src/testing/mock-http-adapter';
 import { Request } from '../../src/models/request';
 import { Response } from '../../src/models/response';

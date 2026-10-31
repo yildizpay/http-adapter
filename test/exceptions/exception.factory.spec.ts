@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
 import {
   HttpException,

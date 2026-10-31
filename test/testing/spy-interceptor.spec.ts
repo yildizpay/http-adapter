@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { SpyInterceptor } from '../../src/testing/spy-interceptor';
 import { Request } from '../../src/models/request';
 import { Response } from '../../src/models/response';
@@ -70,8 +71,8 @@ describe('SpyInterceptor', () => {
 
       expect(result).toBe(error);
       expect(spy.errorCalls).toHaveLength(1);
-      expect(spy.errorCalls[0].error).toBe(error);
-      expect(spy.errorCalls[0].request).toBe(request);
+      expect(spy.errorCalls[0]?.error).toBe(error);
+      expect(spy.errorCalls[0]?.request).toBe(request);
     });
   });
 

@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { ResponseValidator } from '../../src/contracts/response-validator.contract';
@@ -275,7 +276,7 @@ describe('RequestBuilder', () => {
   });
 
   describe('validateWith', () => {
-    const makeValidator = (): ResponseValidator => ({ validate: jest.fn() });
+    const makeValidator = (): ResponseValidator => ({ validate: vi.fn() });
 
     it('should register a single validator', () => {
       const validator = makeValidator();

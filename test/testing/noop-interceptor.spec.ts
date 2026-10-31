@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { NoopInterceptor } from '../../src/testing/noop-interceptor';
 import { Request } from '../../src/models/request';
 import { Response } from '../../src/models/response';

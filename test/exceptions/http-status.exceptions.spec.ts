@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import {
   HttpException,
   BadRequestException,
@@ -319,6 +320,7 @@ describe('HttpStatusExceptions', () => {
         const response = Response.create(null, status, null);
         const error = new (defaultTestCases.find((c) => c.status === status)?.cls ?? HttpException)(
           response,
+          'Error',
         );
         expect(error.isRetryable()).toBe(true);
       });
@@ -329,6 +331,7 @@ describe('HttpStatusExceptions', () => {
         const response = Response.create(null, status, null);
         const error = new (defaultTestCases.find((c) => c.status === status)?.cls ?? HttpException)(
           response,
+          'Error',
         );
         expect(error.isRetryable()).toBe(false);
       });

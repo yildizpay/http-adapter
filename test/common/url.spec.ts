@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { joinUrl } from '../../src/common/utils/url';
 
 describe('joinUrl', () => {

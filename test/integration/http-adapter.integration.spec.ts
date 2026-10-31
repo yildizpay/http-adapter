@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 import { HttpAdapter } from '../../src/core/http.adapter';
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';

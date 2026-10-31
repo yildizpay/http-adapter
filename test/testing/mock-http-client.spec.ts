@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { MockHttpClient } from '../../src/testing/mock-http-client';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';

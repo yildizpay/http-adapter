@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import {
   isBaseAdapterException,
   isHttpException,
@@ -164,7 +165,7 @@ describe('Exception Type Guards', () => {
         expect(error.response.status).toBe(404);
         expect(error.isClientError()).toBe(true);
       } else {
-        fail('Guard should have narrowed to HttpException');
+        expect.fail('Guard should have narrowed to HttpException');
       }
     });
 
@@ -175,7 +176,7 @@ describe('Exception Type Guards', () => {
         expect(error.code).toBe('ETIMEDOUT');
         expect(error.isRetryable()).toBe(true);
       } else {
-        fail('Guard should have narrowed to TimeoutException');
+        expect.fail('Guard should have narrowed to TimeoutException');
       }
     });
   });

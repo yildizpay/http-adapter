@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi, type Mocked } from 'vitest';
 import { HttpAdapter } from '../../src/core/http.adapter';
 import { Request } from '../../src/models/request';
 import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
@@ -12,19 +13,19 @@ import { RetryPolicies } from '../../src/resilience/retry.policies';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
 
-jest.mock('../../src/core/default-http-client', () => ({
+vi.mock('../../src/core/default-http-client', () => ({
   defaultHttpClient: {
-    request: jest.fn(),
+    request: vi.fn(),
   },
 }));
 
 describe('HttpAdapter', () => {
   let adapter: HttpAdapter;
-  let mockHttpClient: jest.Mocked<HttpClientContract>;
+  let mockHttpClient: Mocked<HttpClientContract>;
   let request: Request;
 
   beforeEach(() => {
-    mockHttpClient = defaultHttpClient as jest.Mocked<HttpClientContract>;
+    mockHttpClient = defaultHttpClient as Mocked<HttpClientContract>;
     mockHttpClient.request.mockReset();
 
     mockHttpClient.request.mockResolvedValue({
@@ -204,7 +205,7 @@ describe('HttpAdapter', () => {
 
     it('should execute using circuit breaker when provided', async () => {
       const circuitBreaker = new CircuitBreaker();
-      jest.spyOn(circuitBreaker, 'execute');
+      vi.spyOn(circuitBreaker, 'execute');
 
       adapter = HttpAdapter.create([], undefined, mockHttpClient, circuitBreaker);
 
@@ -281,12 +282,12 @@ describe('HttpAdapter', () => {
     it('should run onResponse before validators', async () => {
       const order: string[] = [];
       const interceptor = {
-        onResponse: jest.fn().mockImplementation(async (r: Response) => {
+        onResponse: vi.fn().mockImplementation(async (r: Response) => {
           order.push('onResponse');
           return r;
         }),
       };
-      const validator = { validate: jest.fn().mockImplementation(() => order.push('validator')) };
+      const validator = { validate: vi.fn().mockImplementation(() => order.push('validator')) };
 
       const requestWithValidator = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
@@ -300,7 +301,7 @@ describe('HttpAdapter', () => {
     });
 
     it('should run a single validator after onResponse', async () => {
-      const validator = { validate: jest.fn() };
+      const validator = { validate: vi.fn() };
       const requestWithValidator = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
         .validateWith(validator)
@@ -315,8 +316,8 @@ describe('HttpAdapter', () => {
 
     it('should run multiple validators in registration order', async () => {
       const order: number[] = [];
-      const v1 = { validate: jest.fn().mockImplementation(() => order.push(1)) };
-      const v2 = { validate: jest.fn().mockImplementation(() => order.push(2)) };
+      const v1 = { validate: vi.fn().mockImplementation(() => order.push(1)) };
+      const v2 = { validate: vi.fn().mockImplementation(() => order.push(2)) };
 
       const requestWithValidators = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
@@ -331,13 +332,13 @@ describe('HttpAdapter', () => {
 
     it('should halt validation chain and throw when a validator fails', async () => {
       const v1 = {
-        validate: jest
+        validate: vi
           .fn()
           .mockRejectedValue(
             new ValidationException('Invalid status', Response.create({}, 200, null)),
           ),
       };
-      const v2 = { validate: jest.fn() };
+      const v2 = { validate: vi.fn() };
 
       const requestWithValidators = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
@@ -352,7 +353,7 @@ describe('HttpAdapter', () => {
     it('should not call validators when request fails with an HTTP error', async () => {
       mockHttpClient.request.mockRejectedValueOnce({ response: { status: 500, data: {} } });
 
-      const validator = { validate: jest.fn() };
+      const validator = { validate: vi.fn() };
       const requestWithValidator = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
         .validateWith(validator)
@@ -364,7 +365,7 @@ describe('HttpAdapter', () => {
     });
 
     it('should support async validators', async () => {
-      const asyncValidator = { validate: jest.fn().mockResolvedValue(undefined) };
+      const asyncValidator = { validate: vi.fn().mockResolvedValue(undefined) };
 
       const requestWithValidator = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
@@ -379,9 +380,9 @@ describe('HttpAdapter', () => {
 
     it('should call onResponseValidated after all validators pass', async () => {
       const order: string[] = [];
-      const validator = { validate: jest.fn().mockImplementation(() => order.push('validator')) };
+      const validator = { validate: vi.fn().mockImplementation(() => order.push('validator')) };
       const interceptor = {
-        onResponseValidated: jest.fn().mockImplementation(async (r: Response) => {
+        onResponseValidated: vi.fn().mockImplementation(async (r: Response) => {
           order.push('onResponseValidated');
           return r;
         }),
@@ -399,9 +400,9 @@ describe('HttpAdapter', () => {
     });
 
     it('should not call onResponseValidated when a validator fails', async () => {
-      const interceptor = { onResponseValidated: jest.fn() };
+      const interceptor = { onResponseValidated: vi.fn() };
       const validator = {
-        validate: jest
+        validate: vi
           .fn()
           .mockRejectedValue(new ValidationException('fail', Response.create({}, 200, null))),
       };
@@ -418,10 +419,10 @@ describe('HttpAdapter', () => {
 
     it('should call onResponse even when validation fails', async () => {
       const interceptor = {
-        onResponse: jest.fn().mockImplementation(async (r: Response) => r),
+        onResponse: vi.fn().mockImplementation(async (r: Response) => r),
       };
       const validator = {
-        validate: jest
+        validate: vi
           .fn()
           .mockRejectedValue(new ValidationException('fail', Response.create({}, 200, null))),
       };
@@ -438,7 +439,7 @@ describe('HttpAdapter', () => {
 
     it('should wrap non-BaseAdapterException validator errors in ValidationException', async () => {
       const zodError = new Error('Schema mismatch');
-      const validator = { validate: jest.fn().mockRejectedValue(zodError) };
+      const validator = { validate: vi.fn().mockRejectedValue(zodError) };
 
       const requestWithValidator = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
@@ -454,7 +455,7 @@ describe('HttpAdapter', () => {
 
     it('should not re-wrap BaseAdapterException thrown by a validator', async () => {
       const validationErr = new ValidationException('explicit', Response.create({}, 200, null));
-      const validator = { validate: jest.fn().mockRejectedValue(validationErr) };
+      const validator = { validate: vi.fn().mockRejectedValue(validationErr) };
 
       const requestWithValidator = new RequestBuilder('https://api.example.com')
         .setEndpoint('/test')
@@ -469,7 +470,7 @@ describe('HttpAdapter', () => {
 
     it('should call onResponseValidated when no validators are registered', async () => {
       const interceptor = {
-        onResponseValidated: jest.fn().mockImplementation(async (r: Response) => r),
+        onResponseValidated: vi.fn().mockImplementation(async (r: Response) => r),
       };
 
       adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
@@ -510,7 +511,7 @@ describe('HttpAdapter', () => {
     });
 
     it('should run error interceptors with the original request', async () => {
-      const onError = jest.fn(async (e) => e);
+      const onError = vi.fn(async (e) => e);
       adapter = HttpAdapter.create(
         [failingInterceptor(new Error('boom')), { onError }],
         undefined,
@@ -523,7 +524,7 @@ describe('HttpAdapter', () => {
     });
 
     it('should notify the observer', async () => {
-      const onRequestFailure = jest.fn();
+      const onRequestFailure = vi.fn();
       adapter = HttpAdapter.builder()
         .withInterceptor(failingInterceptor(new Error('boom')))
         .withHttpClient(mockHttpClient)
@@ -556,7 +557,7 @@ describe('HttpAdapter', () => {
   describe('observer on non-adapter errors', () => {
     it('should notify the observer and rethrow the original error from an error interceptor', async () => {
       const custom = new Error('domain error');
-      const onRequestFailure = jest.fn();
+      const onRequestFailure = vi.fn();
       mockHttpClient.request.mockRejectedValueOnce(new Error('network'));
       adapter = HttpAdapter.builder()
         .withInterceptor({
@@ -581,7 +582,7 @@ describe('HttpAdapter', () => {
       adapter = HttpAdapter.create([], undefined, mockHttpClient);
       await adapter.send(request);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders).not.toHaveProperty('x-correlation-id');
     });
 
@@ -592,7 +593,7 @@ describe('HttpAdapter', () => {
       });
       await adapter.send(request);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders['x-correlation-id']).toBe(request.systemCorrelationId);
     });
 
@@ -603,7 +604,7 @@ describe('HttpAdapter', () => {
       });
       await adapter.send(request);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders['x-request-id']).toBe(request.systemCorrelationId);
       expect(sentHeaders).not.toHaveProperty('x-correlation-id');
     });
@@ -617,7 +618,7 @@ describe('HttpAdapter', () => {
       adapter = HttpAdapter.create([], undefined, mockHttpClient);
       await adapter.send(req);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders['x-correlation-id']).toBe(req.systemCorrelationId);
     });
 
@@ -633,7 +634,7 @@ describe('HttpAdapter', () => {
       });
       await adapter.send(req);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders['x-trace-id']).toBe(req.systemCorrelationId);
       expect(sentHeaders).not.toHaveProperty('x-correlation-id');
     });
@@ -650,7 +651,7 @@ describe('HttpAdapter', () => {
       });
       await adapter.send(req);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders['x-request-id']).toBe(req.systemCorrelationId);
     });
 
@@ -666,7 +667,7 @@ describe('HttpAdapter', () => {
       });
       await adapter.send(req);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders).not.toHaveProperty('x-correlation-id');
     });
 
@@ -679,7 +680,7 @@ describe('HttpAdapter', () => {
       adapter = HttpAdapter.create([], undefined, mockHttpClient);
       await adapter.send(req);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders).not.toHaveProperty('x-correlation-id');
     });
 
@@ -692,7 +693,7 @@ describe('HttpAdapter', () => {
       adapter = HttpAdapter.create([], undefined, mockHttpClient);
       await adapter.send(req);
 
-      const sentHeaders = mockHttpClient.request.mock.calls[0][0].headers!;
+      const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
       expect(sentHeaders['x-correlation-id']).toBe(req.systemCorrelationId);
     });
   });

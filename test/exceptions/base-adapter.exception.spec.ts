@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
 

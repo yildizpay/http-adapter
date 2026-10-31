@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { SpyObserver } from '../../src/testing/spy-observer';
 import { Request } from '../../src/models/request';
 import { Response } from '../../src/models/response';
@@ -45,8 +46,8 @@ describe('SpyObserver', () => {
       spy.onRequestSuccess(response, 123);
 
       expect(spy.successCalls).toHaveLength(1);
-      expect(spy.successCalls[0].response).toBe(response);
-      expect(spy.successCalls[0].durationMs).toBe(123);
+      expect(spy.successCalls[0]?.response).toBe(response);
+      expect(spy.successCalls[0]?.durationMs).toBe(123);
     });
   });
 
@@ -56,8 +57,8 @@ describe('SpyObserver', () => {
       spy.onRequestFailure(error, 456);
 
       expect(spy.failureCalls).toHaveLength(1);
-      expect(spy.failureCalls[0].error).toBe(error);
-      expect(spy.failureCalls[0].durationMs).toBe(456);
+      expect(spy.failureCalls[0]?.error).toBe(error);
+      expect(spy.failureCalls[0]?.durationMs).toBe(456);
     });
   });
 
@@ -67,9 +68,9 @@ describe('SpyObserver', () => {
       spy.onRetry(2, error, 1000);
 
       expect(spy.retryCalls).toHaveLength(1);
-      expect(spy.retryCalls[0].attempt).toBe(2);
-      expect(spy.retryCalls[0].error).toBe(error);
-      expect(spy.retryCalls[0].delayMs).toBe(1000);
+      expect(spy.retryCalls[0]?.attempt).toBe(2);
+      expect(spy.retryCalls[0]?.error).toBe(error);
+      expect(spy.retryCalls[0]?.delayMs).toBe(1000);
     });
   });
 

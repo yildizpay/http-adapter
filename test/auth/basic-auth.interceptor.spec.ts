@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { BasicAuthInterceptor } from '../../src/auth/basic-auth.interceptor';
 import { Request } from '../../src/models/request';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';

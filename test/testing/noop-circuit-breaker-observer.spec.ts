@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { NoopCircuitBreakerObserver } from '../../src/testing/noop-circuit-breaker-observer';
 import { CircuitState } from '../../src/resilience/circuit-breaker/circuit-state.enum';
 

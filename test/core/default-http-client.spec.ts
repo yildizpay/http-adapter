@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi, type Mock } from 'vitest';
 import { defaultHttpClient, FetchHttpClient } from '../../src/core/default-http-client';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
@@ -18,14 +19,14 @@ describe('FetchHttpClient', () => {
 
   beforeEach(() => {
     client = new FetchHttpClient();
-    globalThis.fetch = jest.fn();
-    jest.useFakeTimers();
+    globalThis.fetch = vi.fn();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('should be defined as defaultHttpClient', () => {
@@ -40,9 +41,9 @@ describe('FetchHttpClient', () => {
         'content-type': 'application/json; charset=utf-8',
         'x-custom': 'value',
       }),
-      text: jest.fn().mockResolvedValue(JSON.stringify({ success: true })),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ success: true })),
     };
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+    (globalThis.fetch as Mock).mockResolvedValueOnce(mockResponse);
 
     const result = await client.request({
       url: 'https://api.example.com',
@@ -71,9 +72,9 @@ describe('FetchHttpClient', () => {
       ok: true,
       status: 201,
       headers: new Headers({ 'content-type': 'text/plain' }),
-      text: jest.fn().mockResolvedValue('Plain text response'),
+      text: vi.fn().mockResolvedValue('Plain text response'),
     };
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+    (globalThis.fetch as Mock).mockResolvedValueOnce(mockResponse);
 
     const result = await client.request({
       url: 'https://api.example.com',
@@ -89,9 +90,9 @@ describe('FetchHttpClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
-      text: jest.fn().mockResolvedValue('<html>Bad Gateway</html>'),
+      text: vi.fn().mockResolvedValue('<html>Bad Gateway</html>'),
     };
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+    (globalThis.fetch as Mock).mockResolvedValueOnce(mockResponse);
 
     const result = await client.request({
       url: 'https://api.example.com',
@@ -106,11 +107,11 @@ describe('FetchHttpClient', () => {
     'application/vnd.api+json; charset=utf-8',
     'Application/JSON',
   ])('should parse %s as JSON', async (contentType) => {
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+    (globalThis.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': contentType }),
-      text: jest.fn().mockResolvedValue('{"a":1}'),
+      text: vi.fn().mockResolvedValue('{"a":1}'),
     });
 
     const result = await client.request({ url: 'https://api.example.com', method: HttpMethod.GET });
@@ -119,11 +120,11 @@ describe('FetchHttpClient', () => {
   });
 
   it('should return null for an empty JSON body', async () => {
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+    (globalThis.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
-      text: jest.fn().mockResolvedValue(''),
+      text: vi.fn().mockResolvedValue(''),
     });
 
     const result = await client.request({ url: 'https://api.example.com', method: HttpMethod.GET });
@@ -136,14 +137,14 @@ describe('FetchHttpClient', () => {
       ok: true,
       status: 204,
       headers: new Headers(),
-      text: jest.fn().mockResolvedValue(''),
+      text: vi.fn().mockResolvedValue(''),
     });
-    const sentBody = () => (globalThis.fetch as jest.Mock).mock.calls[0][1].body;
+    const sentBody = () => (globalThis.fetch as Mock).mock.calls[0]![1].body;
 
     it.each([HttpMethod.DELETE, HttpMethod.OPTIONS])(
       'should not send an empty body with %s',
       async (method) => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+        (globalThis.fetch as Mock).mockResolvedValueOnce(okResponse());
 
         await client.request({ url: 'https://api.example.com', method, data: {} });
 
@@ -152,7 +153,7 @@ describe('FetchHttpClient', () => {
     );
 
     it('should send a non-empty body with DELETE', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+      (globalThis.fetch as Mock).mockResolvedValueOnce(okResponse());
 
       await client.request({
         url: 'https://api.example.com',
@@ -166,7 +167,7 @@ describe('FetchHttpClient', () => {
     it.each([HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH])(
       'should still send an empty JSON object with %s',
       async (method) => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+        (globalThis.fetch as Mock).mockResolvedValueOnce(okResponse());
 
         await client.request({ url: 'https://api.example.com', method, data: {} });
 
@@ -175,7 +176,7 @@ describe('FetchHttpClient', () => {
     );
 
     it('should never send a body with HEAD', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+      (globalThis.fetch as Mock).mockResolvedValueOnce(okResponse());
 
       await client.request({
         url: 'https://api.example.com',
@@ -192,12 +193,12 @@ describe('FetchHttpClient', () => {
       ok: true,
       status: 204,
       headers: new Headers(),
-      text: jest.fn().mockResolvedValue(''),
+      text: vi.fn().mockResolvedValue(''),
     });
-    const sentHeaders = () => (globalThis.fetch as jest.Mock).mock.calls[0][1].headers;
+    const sentHeaders = () => (globalThis.fetch as Mock).mock.calls[0]![1].headers;
 
     it('should not send Content-Type without a body', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+      (globalThis.fetch as Mock).mockResolvedValueOnce(okResponse());
 
       await client.request({
         url: 'https://api.example.com',
@@ -209,7 +210,7 @@ describe('FetchHttpClient', () => {
     });
 
     it('should keep a caller Content-Type in any case without adding a duplicate', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+      (globalThis.fetch as Mock).mockResolvedValueOnce(okResponse());
 
       await client.request({
         url: 'https://api.example.com',
@@ -222,7 +223,7 @@ describe('FetchHttpClient', () => {
     });
 
     it('should default Content-Type to JSON when a body is sent', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce(okResponse());
+      (globalThis.fetch as Mock).mockResolvedValueOnce(okResponse());
 
       await client.request({
         url: 'https://api.example.com',
@@ -239,9 +240,9 @@ describe('FetchHttpClient', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
-      text: jest.fn().mockRejectedValue(new TypeError('terminated')),
+      text: vi.fn().mockRejectedValue(new TypeError('terminated')),
     };
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+    (globalThis.fetch as Mock).mockResolvedValueOnce(mockResponse);
 
     await expect(
       client.request({ url: 'https://api.example.com', method: HttpMethod.GET }),
@@ -249,7 +250,7 @@ describe('FetchHttpClient', () => {
   });
 
   it('should abort and throw BaseAdapterException on timeout', async () => {
-    (globalThis.fetch as jest.Mock).mockImplementation(
+    (globalThis.fetch as Mock).mockImplementation(
       (url, config) =>
         new Promise((resolve, reject) => {
           if (config.signal) {
@@ -268,7 +269,7 @@ describe('FetchHttpClient', () => {
       timeout: 100,
     });
 
-    jest.advanceTimersByTime(150);
+    vi.advanceTimersByTime(150);
 
     let error: unknown;
     try {
@@ -285,7 +286,7 @@ describe('FetchHttpClient', () => {
     const abortError = new Error('The operation was aborted');
     abortError.name = 'AbortError';
 
-    (globalThis.fetch as jest.Mock).mockRejectedValue(abortError);
+    (globalThis.fetch as Mock).mockRejectedValue(abortError);
 
     await expect(
       client.request({
@@ -312,7 +313,7 @@ describe('FetchHttpClient', () => {
 
   it('should rethrow standard errors transparently', async () => {
     const standardError = new Error('DNS resolution failed');
-    (globalThis.fetch as jest.Mock).mockRejectedValueOnce(standardError);
+    (globalThis.fetch as Mock).mockRejectedValueOnce(standardError);
 
     await expect(
       client.request({
@@ -327,9 +328,9 @@ describe('FetchHttpClient', () => {
       ok: false,
       status: 404,
       headers: new Headers({ 'content-type': 'application/json' }),
-      text: jest.fn().mockResolvedValue(JSON.stringify({ error: 'Not Found' })),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'Not Found' })),
     };
-    (globalThis.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+    (globalThis.fetch as Mock).mockResolvedValueOnce(mockResponse);
 
     let error: unknown;
     try {

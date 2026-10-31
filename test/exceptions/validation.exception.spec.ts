@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { ValidationException } from '../../src/exceptions/validation.exception';
 import { Response } from '../../src/models/response';
@@ -50,7 +51,7 @@ describe('ValidationException', () => {
     );
 
     expect(exception.cause).toBe(schemaError);
-    expect(exception.cause?.issues[0].message).toBe('Required field missing');
+    expect(exception.cause?.issues[0]?.message).toBe('Required field missing');
   });
 
   it('should have undefined cause when not provided', () => {

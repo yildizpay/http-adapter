@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { FullJitterPolicy } from '../../../src/resilience/policies/full-jitter.retry-policy';
 
 describe('FullJitterPolicy', () => {
