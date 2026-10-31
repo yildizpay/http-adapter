@@ -52,7 +52,7 @@
   "homepage": "https://github.com/yildizpay/http-adapter#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yildizpay/http-adapter.git"
+    "url": "git+https://github.com/yildizpay/http-adapter.git"
   },
   "bugs": {
     "url": "https://github.com/yildizpay/http-adapter/issues"

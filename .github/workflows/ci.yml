@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
+      id-token: write # npm trusted publishing (OIDC)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -79,6 +79,18 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      # Stage publishing needs npm >= 11.15.0.
+      - name: Update npm
+        if: steps.check_tag.outputs.exists == 'false'
+        run: npm install -g npm@^11.15.0
+
+      # Stages the version via trusted publishing; a maintainer approves it with 2FA
+      # on npmjs.com or with `npm stage approve <stage-id>` before it goes live.
+      - name: Stage publish to NPM
+        if: steps.check_tag.outputs.exists == 'false'
+        run: npm stage publish --provenance
+
+      # Tag only after staging succeeds, so a failed publish can simply be re-run.
       - name: Create Git Tag
         if: steps.check_tag.outputs.exists == 'false'
         run: |
@@ -86,12 +98,6 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag v${{ steps.pkg_version.outputs.version }}
           git push origin v${{ steps.pkg_version.outputs.version }}
-
-      - name: Publish to NPM
-        if: steps.check_tag.outputs.exists == 'false'
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         if: steps.check_tag.outputs.exists == 'false'
