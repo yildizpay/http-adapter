@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { Request } from '../../src/models/request';
+import { describe, expect, it } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import { Request } from '../../src/models/request';
 
 describe('Request', () => {
   const baseUrl = 'https://api.example.com';

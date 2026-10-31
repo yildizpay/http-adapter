@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { BearerAuthInterceptor } from '../../src/auth/bearer-auth.interceptor';
-import { Request } from '../../src/models/request';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import { Request } from '../../src/models/request';
 
 const makeRequest = () => new Request('https://api.example.com', '/test', HttpMethod.GET);
 

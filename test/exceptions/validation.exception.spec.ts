@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { ValidationException } from '../../src/exceptions/validation.exception';
 import { Response } from '../../src/models/response';

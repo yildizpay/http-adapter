@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { NoopInterceptor } from '../../src/testing/noop-interceptor';
-import { Request } from '../../src/models/request';
-import { Response } from '../../src/models/response';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import { Request } from '../../src/models/request';
+import { Response } from '../../src/models/response';
+import { NoopInterceptor } from '../../src/testing/noop-interceptor';
 
 const makeRequest = (): Request => new Request('https://api.example.com', '/test', HttpMethod.GET);
 

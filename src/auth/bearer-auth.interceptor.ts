@@ -1,6 +1,6 @@
 import type { HttpRequestInterceptor } from '../contracts/http-interceptor.contract';
 import type { Request } from '../models/request';
-import { type TokenProvider, resolveToken } from './token-provider';
+import { resolveToken, type TokenProvider } from './token-provider';
 
 /**
  * An interceptor that attaches a Bearer token to every outgoing request

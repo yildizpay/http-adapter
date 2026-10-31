@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ExponentialBackoffPolicy } from '../../../src/resilience/policies/exponential-backoff.retry-policy';
 
 describe('ExponentialBackoffPolicy', () => {

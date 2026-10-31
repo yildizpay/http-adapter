@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { SpyInterceptor } from '../../src/testing/spy-interceptor';
-import { Request } from '../../src/models/request';
-import { Response } from '../../src/models/response';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import { Request } from '../../src/models/request';
+import { Response } from '../../src/models/response';
+import { SpyInterceptor } from '../../src/testing/spy-interceptor';
 
 const makeRequest = (): Request => new Request('https://api.example.com', '/test', HttpMethod.GET);
 

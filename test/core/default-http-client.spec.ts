@@ -1,9 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi, type Mock } from 'vitest';
-import { defaultHttpClient, FetchHttpClient } from '../../src/core/default-http-client';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
+import { defaultHttpClient, FetchHttpClient } from '../../src/core/default-http-client';
+import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
 import { NetworkException, TimeoutException } from '../../src/exceptions/network.exceptions';
-import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 
 describe('FetchHttpClient', () => {
   let client: FetchHttpClient;

@@ -1,5 +1,5 @@
-import { BaseAdapterException } from './base-adapter.exception';
 import type { RequestContext } from '../models/request-context';
+import { BaseAdapterException } from './base-adapter.exception';
 
 export class NetworkException extends BaseAdapterException {
   public readonly requestContext?: RequestContext;

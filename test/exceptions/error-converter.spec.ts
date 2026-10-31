@@ -1,21 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
+import { describe, expect, it } from 'vitest';
 import { ErrorConverter } from '../../src/core/error.converter';
+import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
+import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
 import {
-  HttpException,
   BadRequestException,
-  NotFoundException,
+  HttpException,
   InternalServerErrorException,
+  NotFoundException,
 } from '../../src/exceptions/http-status.exceptions';
 import {
-  NetworkException,
   ConnectionRefusedException,
   DnsResolutionException,
-  TimeoutException,
+  NetworkException,
   SocketResetException,
+  TimeoutException,
 } from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
-import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
 
 describe('ErrorConverter', () => {
   describe('passthrough for existing BaseAdapterException instances', () => {

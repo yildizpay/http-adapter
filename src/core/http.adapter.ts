@@ -1,30 +1,30 @@
-import { defaultHttpClient } from './default-http-client';
-import type { Request } from '../models/request';
-import { Response } from '../models/response';
-import type { RequestContext } from '../models/request-context';
+import { HttpAdapterBuilder } from '../builders/http-adapter.builder';
+import { joinUrl } from '../common/utils/url';
+import type { HttpAdapterContract } from '../contracts/http-adapter.contract';
+import type { HttpClientContract } from '../contracts/http-client.contract';
 import type {
+  HttpErrorInterceptor,
   HttpInterceptor,
   HttpRequestInterceptor,
   HttpResponseInterceptor,
   HttpValidatedResponseInterceptor,
-  HttpErrorInterceptor,
 } from '../contracts/http-interceptor.contract';
 import type { RetryPolicy } from '../contracts/retry-policy.contract';
-import { RetryExecutor } from '../resilience/retry-executor';
-import type { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
-import type { HttpClientContract } from '../contracts/http-client.contract';
-import { ErrorConverter } from './error.converter';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { ValidationException } from '../exceptions/validation.exception';
-import { HttpAdapterBuilder } from '../builders/http-adapter.builder';
 import {
   type CorrelationIdConfig,
   DEFAULT_CORRELATION_ID_HEADER,
 } from '../models/correlation-id-config';
-import type { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import type { Request } from '../models/request';
+import type { RequestContext } from '../models/request-context';
 import type { RequestOverrides } from '../models/request-overrides';
-import type { HttpAdapterContract } from '../contracts/http-adapter.contract';
-import { joinUrl } from '../common/utils/url';
+import { Response } from '../models/response';
+import type { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import type { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
+import { RetryExecutor } from '../resilience/retry-executor';
+import { defaultHttpClient } from './default-http-client';
+import { ErrorConverter } from './error.converter';
 
 interface InterceptorGroups {
   request: HttpRequestInterceptor[];

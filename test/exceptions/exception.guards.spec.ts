@@ -1,34 +1,34 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
 import {
   isBaseAdapterException,
-  isHttpException,
-  isNetworkException,
-  isTimeoutException,
+  isCircuitBreakerOpenException,
   isConnectionRefusedException,
   isDnsResolutionException,
-  isSocketResetException,
   isHostUnreachableException,
+  isHttpException,
+  isNetworkException,
+  isSocketResetException,
+  isTimeoutException,
   isUnknownException,
-  isCircuitBreakerOpenException,
   isValidationException,
 } from '../../src/exceptions/exception.guards';
-import type { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
-import { ValidationException } from '../../src/exceptions/validation.exception';
-import { Response } from '../../src/models/response';
-import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
 import {
   BadRequestException,
   NotFoundException,
 } from '../../src/exceptions/http-status.exceptions';
 import {
-  NetworkException,
-  TimeoutException,
   ConnectionRefusedException,
   DnsResolutionException,
-  SocketResetException,
   HostUnreachableException,
+  NetworkException,
+  SocketResetException,
+  TimeoutException,
 } from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
+import { ValidationException } from '../../src/exceptions/validation.exception';
+import { Response } from '../../src/models/response';
 
 const mockResponse = (status: number) => Response.create(null, status, null);
 

@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RequestBuilder } from '../../src/builders/request.builder';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import type { ResponseValidator } from '../../src/contracts/response-validator.contract';
 import type { HttpBody } from '../../src/common/types/http.types';
-import { RetryPolicies } from '../../src/resilience/retry.policies';
+import type { ResponseValidator } from '../../src/contracts/response-validator.contract';
 import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
 
 describe('RequestBuilder', () => {
   let builder: RequestBuilder;

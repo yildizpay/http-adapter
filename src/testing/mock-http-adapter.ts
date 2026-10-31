@@ -1,8 +1,8 @@
-import type { Request } from '../models/request';
-import { Response } from '../models/response';
-import type { HttpAdapterContract } from '../contracts/http-adapter.contract';
 import type { HttpMethod } from '../common/enums/http-method.enum';
 import type { HttpBody } from '../common/types/http.types';
+import type { HttpAdapterContract } from '../contracts/http-adapter.contract';
+import type { Request } from '../models/request';
+import { Response } from '../models/response';
 
 // --- Internal types ---
 

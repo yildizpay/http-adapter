@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { NoopCircuitBreakerObserver } from '../../src/testing/noop-circuit-breaker-observer';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { CircuitState } from '../../src/resilience/circuit-breaker/circuit-state.enum';
+import { NoopCircuitBreakerObserver } from '../../src/testing/noop-circuit-breaker-observer';
 
 describe('NoopCircuitBreakerObserver', () => {
   let observer: NoopCircuitBreakerObserver;

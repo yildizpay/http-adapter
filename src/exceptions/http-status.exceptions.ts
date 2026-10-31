@@ -1,6 +1,6 @@
+import { findHeaderKey } from '../common/utils/headers';
 import type { Response } from '../models/response';
 import { BaseAdapterException } from './base-adapter.exception';
-import { findHeaderKey } from '../common/utils/headers';
 
 export class HttpException<T = unknown> extends BaseAdapterException {
   public readonly response: Response<T>;

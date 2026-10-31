@@ -1,7 +1,7 @@
-import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import type { RetryPredicate } from './retry-predicate.contract';
-import { SocketResetException } from '../exceptions/network.exceptions';
 import { HttpMethod } from '../common/enums/http-method.enum';
+import { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import { SocketResetException } from '../exceptions/network.exceptions';
+import type { RetryPredicate } from './retry-predicate.contract';
 
 /** Methods that are idempotent by definition (RFC 9110 §9.2.2). */
 const IDEMPOTENT_METHODS = new Set<string>([

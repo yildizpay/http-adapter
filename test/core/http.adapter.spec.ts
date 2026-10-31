@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeEach, vi, type Mocked } from 'vitest';
-import { HttpAdapter } from '../../src/core/http.adapter';
-import { Request } from '../../src/models/request';
-import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
+import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 import { RequestBuilder } from '../../src/builders/request.builder';
-import { Response } from '../../src/models/response';
-import type { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import { defaultHttpClient } from '../../src/core/default-http-client';
 import type { HttpClientContract } from '../../src/contracts/http-client.contract';
-import { ValidationException } from '../../src/exceptions/validation.exception';
-import { RetryPolicies } from '../../src/resilience/retry.policies';
+import type { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
+import { defaultHttpClient } from '../../src/core/default-http-client';
+import { HttpAdapter } from '../../src/core/http.adapter';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
+import { ValidationException } from '../../src/exceptions/validation.exception';
+import { Request } from '../../src/models/request';
+import { Response } from '../../src/models/response';
+import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
+import { RetryPolicies } from '../../src/resilience/retry.policies';
 
 vi.mock('../../src/core/default-http-client', () => ({
   defaultHttpClient: {

@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { HttpAdapterBuilder } from '../../src/builders/http-adapter.builder';
+import type { HttpClientContract } from '../../src/contracts/http-client.contract';
+import type { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
 import { HttpAdapter } from '../../src/core/http.adapter';
 import { CircuitBreaker } from '../../src/resilience/circuit-breaker/circuit-breaker';
 import { RetryPolicies } from '../../src/resilience/retry.policies';
-import type { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
-import type { HttpClientContract } from '../../src/contracts/http-client.contract';
 
 describe('HttpAdapterBuilder', () => {
   it('should build an HttpAdapter with no configuration', () => {

@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { NetworkExceptionFactory } from '../../src/exceptions/network-exception.factory';
+import { describe, expect, it } from 'vitest';
 import {
-  NetworkException,
   ConnectionRefusedException,
   DnsResolutionException,
-  TimeoutException,
-  SocketResetException,
   HostUnreachableException,
+  NetworkException,
+  SocketResetException,
+  TimeoutException,
 } from '../../src/exceptions/network.exceptions';
+import { NetworkExceptionFactory } from '../../src/exceptions/network-exception.factory';
 
 function makeErrnoError(message: string, code: string): NodeJS.ErrnoException {
   const error: NodeJS.ErrnoException = new Error(message);

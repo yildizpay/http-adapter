@@ -1,5 +1,5 @@
-import { BaseAdapterException } from './base-adapter.exception';
 import type { RequestContext } from '../models/request-context';
+import { BaseAdapterException } from './base-adapter.exception';
 
 /**
  * Fallback exception thrown when the adapter encounters an error shape

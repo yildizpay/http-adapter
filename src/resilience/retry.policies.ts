@@ -1,8 +1,8 @@
+import { DecorrelatedJitterPolicy } from './policies/decorrelated-jitter.retry-policy';
 import { ExponentialBackoffPolicy } from './policies/exponential-backoff.retry-policy';
 import { FixedDelayPolicy } from './policies/fixed-delay.retry-policy';
-import { LinearBackoffPolicy } from './policies/linear-backoff.retry-policy';
 import { FullJitterPolicy } from './policies/full-jitter.retry-policy';
-import { DecorrelatedJitterPolicy } from './policies/decorrelated-jitter.retry-policy';
+import { LinearBackoffPolicy } from './policies/linear-backoff.retry-policy';
 
 /**
  * A factory class for creating standard retry policies.

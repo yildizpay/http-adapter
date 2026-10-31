@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CircuitBreakerOpenException } from '../../../src/exceptions/circuit-breaker-open.exception';
 import { CircuitBreaker } from '../../../src/resilience/circuit-breaker/circuit-breaker';
 import { CircuitState } from '../../../src/resilience/circuit-breaker/circuit-state.enum';
-import { CircuitBreakerOpenException } from '../../../src/exceptions/circuit-breaker-open.exception';
 
 describe('CircuitBreaker', () => {
   let circuitBreaker: CircuitBreaker;
