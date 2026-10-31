@@ -3,6 +3,8 @@ import { UnknownException } from '../exceptions/unknown.exception';
 import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
 import { RequestContext } from '../models/request-context';
+import { HttpException } from '../exceptions/http-status.exceptions';
+import { NetworkException } from '../exceptions/network.exceptions';
 
 /**
  * Shape of an HTTP-like error object (e.g. Axios error, custom client error).
@@ -30,14 +32,18 @@ export class ErrorConverter {
    * Coerces any unknown error into a strongly-typed BaseAdapterException.
    *
    * @param error - The raw error to convert.
-   * @param requestContext - Safe metadata about the originating request.
+   * @param requestContext - Safe metadata about the originating request. It is also attached
+   *   to an incoming `BaseAdapterException` that has no context yet (e.g. one thrown by
+   *   `FetchHttpClient`, which does not know the request metadata); existing context is kept.
    * @returns A standardized exception (HttpException, NetworkException, or UnknownException).
    */
   public static toAdapterException(
     error: unknown,
     requestContext?: RequestContext,
   ): BaseAdapterException {
-    if (error instanceof BaseAdapterException) return error;
+    if (error instanceof BaseAdapterException) {
+      return ErrorConverter.attachRequestContext(error, requestContext);
+    }
 
     if (error && typeof error === 'object') {
       const errObj = error as HttpLikeError;
@@ -75,5 +81,26 @@ export class ErrorConverter {
       error,
       requestContext,
     );
+  }
+
+  /**
+   * Attaches `requestContext` to an exception that does not carry one yet.
+   *
+   * @private
+   */
+  private static attachRequestContext(
+    error: BaseAdapterException,
+    requestContext?: RequestContext,
+  ): BaseAdapterException {
+    if (!requestContext) return error;
+
+    if (error instanceof HttpException) {
+      const response = error.response as { requestContext?: RequestContext };
+      response.requestContext ??= requestContext;
+    } else if (error instanceof NetworkException || error instanceof UnknownException) {
+      const target = error as { requestContext?: RequestContext };
+      target.requestContext ??= requestContext;
+    }
+    return error;
   }
 }
