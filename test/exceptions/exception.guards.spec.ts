@@ -12,7 +12,7 @@ import {
   isCircuitBreakerOpenException,
   isValidationException,
 } from '../../src/exceptions/exception.guards';
-import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import type { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { ValidationException } from '../../src/exceptions/validation.exception';
 import { Response } from '../../src/models/response';
 import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';

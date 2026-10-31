@@ -1,9 +1,9 @@
 import { HttpMethod } from '../common/enums/http-method.enum';
-import { HttpBody } from '../common/types/http.types';
+import type { HttpBody } from '../common/types/http.types';
 import { RequestOptions } from './request-options';
-import { ResponseValidator } from '../contracts/response-validator.contract';
-import { CorrelationIdConfig } from './correlation-id-config';
-import { RequestOverrides } from './request-overrides';
+import type { ResponseValidator } from '../contracts/response-validator.contract';
+import type { CorrelationIdConfig } from './correlation-id-config';
+import type { RequestOverrides } from './request-overrides';
 import { setHeader } from '../common/utils/headers';
 
 /**

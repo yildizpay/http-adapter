@@ -12,7 +12,7 @@ describe('BasicAuthInterceptor', () => {
     await interceptor.onRequest(request);
 
     const expected = `Basic ${Buffer.from('admin:secret').toString('base64')}`;
-    expect(request.headers['Authorization']).toBe(expected);
+    expect(request.headers.Authorization).toBe(expected);
   });
 
   it('should handle empty password', async () => {
@@ -21,7 +21,7 @@ describe('BasicAuthInterceptor', () => {
     await interceptor.onRequest(request);
 
     const expected = `Basic ${Buffer.from('user:').toString('base64')}`;
-    expect(request.headers['Authorization']).toBe(expected);
+    expect(request.headers.Authorization).toBe(expected);
   });
 
   it('should return the request after setting the header', async () => {
@@ -38,6 +38,6 @@ describe('BasicAuthInterceptor', () => {
     await interceptor.onRequest(request);
 
     const expected = `Basic ${Buffer.from('new-user:new-pass').toString('base64')}`;
-    expect(request.headers['Authorization']).toBe(expected);
+    expect(request.headers.Authorization).toBe(expected);
   });
 });

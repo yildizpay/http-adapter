@@ -1,6 +1,6 @@
-import { HttpRequestInterceptor } from '../contracts/http-interceptor.contract';
-import { Request } from '../models/request';
-import { TokenProvider, resolveToken } from './token-provider';
+import type { HttpRequestInterceptor } from '../contracts/http-interceptor.contract';
+import type { Request } from '../models/request';
+import { type TokenProvider, resolveToken } from './token-provider';
 
 /**
  * Configuration for `ApiKeyInterceptor`.

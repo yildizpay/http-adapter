@@ -25,7 +25,7 @@ export class DecorrelatedJitterPolicy extends RetryPolicy {
   }
 
   public backoffMs(attempt: number): number {
-    const cap = Math.min(this.maxDelayMs, this.baseMs * Math.pow(3, attempt));
+    const cap = Math.min(this.maxDelayMs, this.baseMs * 3 ** attempt);
     return Math.random() * (cap - this.baseMs) + this.baseMs;
   }
 }

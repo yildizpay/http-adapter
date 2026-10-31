@@ -1,5 +1,5 @@
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { RetryPredicate } from './retry-predicate.contract';
+import type { RetryPredicate } from './retry-predicate.contract';
 import { SocketResetException } from '../exceptions/network.exceptions';
 import { HttpMethod } from '../common/enums/http-method.enum';
 

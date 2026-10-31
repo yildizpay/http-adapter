@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { HttpAdapter } from '../../src/core/http.adapter';
-import { HttpAdapterObserver } from '../../src/observability/http-adapter-observer';
+import type { HttpAdapterObserver } from '../../src/observability/http-adapter-observer';
 import { RequestBuilder } from '../../src/builders/request.builder';
-import { Response } from '../../src/models/response';
+import type { Response } from '../../src/models/response';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { RetryPolicies } from '../../src/resilience/retry.policies';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
-import { HttpClientContract } from '../../src/contracts/http-client.contract';
+import type { HttpClientContract } from '../../src/contracts/http-client.contract';
 
 const makeRequest = () =>
   new RequestBuilder('https://api.example.com').setEndpoint('/test').build();

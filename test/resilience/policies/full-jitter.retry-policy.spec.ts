@@ -6,7 +6,7 @@ describe('FullJitterPolicy', () => {
     const policy = new FullJitterPolicy(3, 100);
     for (let attempt = 1; attempt <= 3; attempt++) {
       const delay = policy.backoffMs(attempt);
-      const cap = Math.pow(2, attempt) * 100;
+      const cap = 2 ** attempt * 100;
       expect(delay).toBeGreaterThanOrEqual(0);
       expect(delay).toBeLessThan(cap);
     }

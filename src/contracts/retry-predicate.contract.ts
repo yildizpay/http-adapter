@@ -1,4 +1,4 @@
-import { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import type { BaseAdapterException } from '../exceptions/base-adapter.exception';
 
 /**
  * Defines a pluggable predicate for determining whether a failed request should be retried.

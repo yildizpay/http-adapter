@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { serializeRequestBody } from '../../src/core/body-serializer';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import { HttpClientRequestConfig } from '../../src/contracts/http-client.contract';
+import type { HttpClientRequestConfig } from '../../src/contracts/http-client.contract';
 
 describe('serializeRequestBody', () => {
   const config = (overrides: Partial<HttpClientRequestConfig>): HttpClientRequestConfig => ({

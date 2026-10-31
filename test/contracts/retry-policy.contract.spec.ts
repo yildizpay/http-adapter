@@ -4,8 +4,8 @@ import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factor
 import { SocketResetException, TimeoutException } from '../../src/exceptions/network.exceptions';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
-import { RetryPredicate } from '../../src/contracts/retry-predicate.contract';
-import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
+import type { RetryPredicate } from '../../src/contracts/retry-predicate.contract';
+import type { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { Response } from '../../src/models/response';
 
 class TestPolicy extends RetryPolicy {

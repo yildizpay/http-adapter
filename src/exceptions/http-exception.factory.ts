@@ -1,5 +1,5 @@
 import { Response } from '../models/response';
-import { RequestContext } from '../models/request-context';
+import type { RequestContext } from '../models/request-context';
 import {
   HttpException,
   BadRequestException,

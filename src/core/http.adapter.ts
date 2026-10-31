@@ -1,29 +1,29 @@
 import { defaultHttpClient } from './default-http-client';
-import { Request } from '../models/request';
+import type { Request } from '../models/request';
 import { Response } from '../models/response';
-import { RequestContext } from '../models/request-context';
-import {
+import type { RequestContext } from '../models/request-context';
+import type {
   HttpInterceptor,
   HttpRequestInterceptor,
   HttpResponseInterceptor,
   HttpValidatedResponseInterceptor,
   HttpErrorInterceptor,
 } from '../contracts/http-interceptor.contract';
-import { RetryPolicy } from '../contracts/retry-policy.contract';
+import type { RetryPolicy } from '../contracts/retry-policy.contract';
 import { RetryExecutor } from '../resilience/retry-executor';
-import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
-import { HttpClientContract } from '../contracts/http-client.contract';
+import type { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
+import type { HttpClientContract } from '../contracts/http-client.contract';
 import { ErrorConverter } from './error.converter';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { ValidationException } from '../exceptions/validation.exception';
 import { HttpAdapterBuilder } from '../builders/http-adapter.builder';
 import {
-  CorrelationIdConfig,
+  type CorrelationIdConfig,
   DEFAULT_CORRELATION_ID_HEADER,
 } from '../models/correlation-id-config';
-import { HttpAdapterObserver } from '../observability/http-adapter-observer';
-import { RequestOverrides } from '../models/request-overrides';
-import { HttpAdapterContract } from '../contracts/http-adapter.contract';
+import type { HttpAdapterObserver } from '../observability/http-adapter-observer';
+import type { RequestOverrides } from '../models/request-overrides';
+import type { HttpAdapterContract } from '../contracts/http-adapter.contract';
 import { joinUrl } from '../common/utils/url';
 
 interface InterceptorGroups {

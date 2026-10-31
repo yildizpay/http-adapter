@@ -6,7 +6,7 @@ import { RetryPolicies } from '../../src/resilience/retry.policies';
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import {
   NotFoundException,
-  InternalServerErrorException,
+  type InternalServerErrorException,
 } from '../../src/exceptions/http-status.exceptions';
 import {
   ConnectionRefusedException,

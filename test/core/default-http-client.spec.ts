@@ -251,8 +251,8 @@ describe('FetchHttpClient', () => {
 
   it('should abort and throw BaseAdapterException on timeout', async () => {
     (globalThis.fetch as Mock).mockImplementation(
-      (url, config) =>
-        new Promise((resolve, reject) => {
+      (_url, config) =>
+        new Promise((_resolve, reject) => {
           if (config.signal) {
             config.signal.addEventListener('abort', () => {
               const err = new Error('The operation was aborted');

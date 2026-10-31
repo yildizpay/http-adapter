@@ -24,7 +24,7 @@ export class FullJitterPolicy extends RetryPolicy {
   }
 
   public backoffMs(attempt: number): number {
-    const cap = Math.pow(2, attempt) * this.baseMs;
+    const cap = 2 ** attempt * this.baseMs;
     return Math.random() * cap;
   }
 }

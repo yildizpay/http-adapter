@@ -1,6 +1,6 @@
-import { Request } from '../models/request';
-import { Response } from '../models/response';
-import { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import type { Request } from '../models/request';
+import type { Response } from '../models/response';
+import type { BaseAdapterException } from '../exceptions/base-adapter.exception';
 
 /**
  * A read-only observer for the `HttpAdapter` request lifecycle.

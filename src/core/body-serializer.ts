@@ -1,8 +1,8 @@
 import { HttpMethod } from '../common/enums/http-method.enum';
-import { HttpBody } from '../common/types/http.types';
+import type { HttpBody } from '../common/types/http.types';
 import { findHeaderKey } from '../common/utils/headers';
 import { isJsonMediaType, mediaTypeOf } from '../common/utils/media-type';
-import { HttpClientRequestConfig } from '../contracts/http-client.contract';
+import type { HttpClientRequestConfig } from '../contracts/http-client.contract';
 
 /** Methods whose requests carry a body by definition; an empty body is still sent for them. */
 const BODY_METHODS = new Set<string>([HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH]);

@@ -6,7 +6,7 @@ import {
   SocketResetException,
   HostUnreachableException,
 } from './network.exceptions';
-import { RequestContext } from '../models/request-context';
+import type { RequestContext } from '../models/request-context';
 
 /** Shape shared by Node.js system errors, undici errors and DOMExceptions. */
 interface ErrorLike {
@@ -62,7 +62,7 @@ export class NetworkExceptionFactory {
     requestContext?: RequestContext,
   ): NetworkException {
     if (!isErrorLike(error)) {
-      return new NetworkException(this.extractMessage(error), undefined, undefined, requestContext);
+      return new NetworkException(NetworkExceptionFactory.extractMessage(error), undefined, undefined, requestContext);
     }
 
     const chain = causeChain(error);

@@ -56,7 +56,7 @@ describe('Request', () => {
     it('should add new header', () => {
       const request = new Request(baseUrl, endpoint);
       request.addHeader('Authorization', 'Bearer token');
-      expect(request.headers['Authorization']).toBe('Bearer token');
+      expect(request.headers.Authorization).toBe('Bearer token');
     });
   });
 
@@ -64,7 +64,7 @@ describe('Request', () => {
     it('should add new query parameter', () => {
       const request = new Request(baseUrl, endpoint);
       request.addQueryParam('page', '1');
-      expect(request.queryParams['page']).toBe('1');
+      expect(request.queryParams.page).toBe('1');
     });
   });
 

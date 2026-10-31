@@ -3,7 +3,7 @@ import { MockHttpAdapter } from '../../src/testing/mock-http-adapter';
 import { Request } from '../../src/models/request';
 import { Response } from '../../src/models/response';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
-import { HttpBody } from '../../src/common/types/http.types';
+import type { HttpBody } from '../../src/common/types/http.types';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
 import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
 

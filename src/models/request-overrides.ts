@@ -1,12 +1,12 @@
-import { RetryPolicy } from '../contracts/retry-policy.contract';
-import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
+import type { RetryPolicy } from '../contracts/retry-policy.contract';
+import type { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 
 /**
  * A constructor type used exclusively for `instanceof` checks when excluding interceptors by class.
  *
  * The `any` spread is intentional — we never call this constructor, only use it for type narrowing.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: constructor arguments are never inspected, only the class shape.
 export type InterceptorClass = abstract new (...args: any[]) => object;
 
 /**

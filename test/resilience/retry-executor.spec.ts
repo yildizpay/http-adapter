@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, type Mocked } from 'vitest';
 import { HttpMethod } from '../../src/common/enums/http-method.enum';
 import { RetryExecutor } from '../../src/resilience/retry-executor';
-import { RetryPolicy } from '../../src/contracts/retry-policy.contract';
+import type { RetryPolicy } from '../../src/contracts/retry-policy.contract';
 
 describe('RetryExecutor', () => {
   let mockPolicy: Mocked<RetryPolicy>;

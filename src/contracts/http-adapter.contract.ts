@@ -1,5 +1,5 @@
-import { Request } from '../models/request';
-import { Response } from '../models/response';
+import type { Request } from '../models/request';
+import type { Response } from '../models/response';
 
 /**
  * Contract for sending HTTP requests through an adapter.

@@ -1,5 +1,5 @@
-import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
-import { AddressInfo } from 'node:net';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 /**
  * A request as received by the test server, captured before any handler runs.
