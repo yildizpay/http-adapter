@@ -311,20 +311,37 @@ onRequest → HTTP call → onResponse → validators → onResponseValidated �
 
 Exception'lar business logic'e ulaşmadan önce interceptor seviyesinde yakalanabilir ve dönüştürülebilir.
 
+Sözleşme `onError(error, request): Promise<BaseAdapterException>` şeklindedir. Her hata `BaseAdapterException` olarak gelir ve error interceptor iki şeyden birini yapar:
+
+- **Exception döndürmek** zinciri devam ettirir. Sonraki error interceptor döndürülen değeri alır; caller'a son interceptor'ın döndürdüğü değer ulaşır. Hataları zenginleştirmek veya değiştirmek için kullanın.
+- **Fırlatmak** zinciri hemen durdurur. Fırlatılan değer caller'a olduğu gibi ulaşır; bu kendi domain hatanız da olabilir. Her zaman fırlatan bir metot dönüş tipini `Promise<never>` olarak tanımlayabilir.
+
 ```typescript
 import {
   HttpErrorInterceptor,
   Request,
   BaseAdapterException,
+  ServiceUnavailableException,
   UnauthorizedException,
+  isHttpException,
 } from '@yildizpay/http-adapter';
 
+// Döndürme: hatayı değiştir, zincir devam etsin
+export class MaintenanceInterceptor implements HttpErrorInterceptor {
+  async onError(error: BaseAdapterException): Promise<BaseAdapterException> {
+    if (isHttpException(error) && error.response.status === 503) {
+      return new ServiceUnavailableException(error.response, 'Sağlayıcı bakımda', error.code, error);
+    }
+    return error;
+  }
+}
+
+// Fırlatma: zinciri durdur, hatayı olduğu gibi ilet
 export class GlobalErrorInterceptor implements HttpErrorInterceptor {
   async onError(error: BaseAdapterException, request: Request): Promise<never> {
     if (error instanceof UnauthorizedException) {
       await this.tokenService.refresh();
     }
-    // Caller'ın handle edebilmesi için hatayı yeniden fırlat
     throw error;
   }
 }
@@ -342,17 +359,30 @@ Ağ kararsızlığı kaçınılmazdır. Bu adaptör, sağlam retry stratejileri 
 | Fixed Delay | `RetryPolicies.fixedDelay(attempts, delayMs)` | Her retry arasında sabit bekleme süresi |
 | Linear Backoff | `RetryPolicies.linearBackoff(attempts, stepMs)` | Gecikme doğrusal büyür (`attempt × stepMs`) |
 | Full Jitter | `RetryPolicies.fullJitter(attempts, baseMs)` | Üstel cap içinde tamamen rastgele gecikme — concurrent yükü yaymak için en iyi seçim |
-| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | AWS tarafından önerilen algoritma, concurrent istemciler arasında en geniş yayılımı sağlar |
+| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | `baseMs` ile her retry'da üç katına çıkan bir üst sınır arasında rastgele gecikme; concurrent istemciler arasında geniş yayılım |
+
+> **`attempts`, ilk çağrı dahil toplam deneme sayısıdır.** `RetryPolicies.exponential(3)` isteği en fazla 3 kez gönderir: ilk çağrı ve 2 retry.
+
+*n*. retry'dan önceki gecikme (ilk retry için n = 1):
+
+| Policy | Gecikme | Varsayılanlarla |
+|---|---|---|
+| Exponential Backoff | `2^n × 100 ms + random(0–50 ms)` | ~200 ms, ~400 ms |
+| Fixed Delay | `delayMs` | 1000 ms, 1000 ms |
+| Linear Backoff | `n × stepMs` | 500 ms, 1000 ms |
+| Full Jitter | `random(0, 2^n × baseMs)` | ≤ 200 ms, ≤ 400 ms |
+| Decorrelated Jitter | `random(baseMs, min(maxDelayMs, baseMs × 3^n))`; her gecikme bağımsız hesaplanır | 100–300 ms, 100–900 ms |
+
+Varsayılan olarak `error.isRetryable()` `true` döndüğünde retry yapılır: HTTP 429, 502, 503 ve 504, timeout'lar, reddedilen bağlantılar ve bağlantı kopmaları. **POST ve PATCH isteklerinde bağlantı kopması retry edilmez**, çünkü sunucu isteği çoktan işlemiş olabilir (ör. karttan çekim yapılmış olabilir). Endpoint'iniz idempotent ise `retryIf()` ile açıkça izin verin.
 
 ```typescript
 import { RetryPolicies } from '@yildizpay/http-adapter';
 
-// Tüm policy'ler varsayılan olarak 429, 502, 503, 504 ve ağ hatalarında retry yapar
-RetryPolicies.exponential(3);
-RetryPolicies.fixedDelay(3, 1000);          // her denemede 1 sn bekleme
-RetryPolicies.linearBackoff(3, 500);        // 500 ms, 1000 ms, 1500 ms
-RetryPolicies.fullJitter(3, 100);           // [0, 2^attempt * 100 ms] aralığında rastgele
-RetryPolicies.decorrelatedJitter(3, 100);   // AWS decorrelated jitter, cap 30 sn
+RetryPolicies.exponential(3);               // en fazla 3 çağrı: ~200 ms, sonra ~400 ms bekler
+RetryPolicies.fixedDelay(3, 1000);          // her retry'dan önce 1 sn bekler
+RetryPolicies.linearBackoff(3, 500);        // 500 ms, sonra 1000 ms bekler
+RetryPolicies.fullJitter(3, 100);           // [0, 2^n * 100 ms] aralığında rastgele
+RetryPolicies.decorrelatedJitter(3, 100);   // [100 ms, min(30 sn, 100 * 3^n ms)] aralığında rastgele
 ```
 
 ### Özel Retry Predicate
@@ -536,14 +566,16 @@ import {
 } from '@yildizpay/http-adapter';
 
 export class GlobalErrorInterceptor implements HttpErrorInterceptor {
-  async onError(error: BaseAdapterException, request: Request): Promise<never> {
+  async onError(error: BaseAdapterException, request: Request): Promise<BaseAdapterException> {
     if (error instanceof UnauthorizedException) {
-      console.error(`${error.requestContext?.url} endpoint'ine yetkisiz erişim!`);
+      console.error(`${request.endpoint} endpoint'ine yetkisiz erişim!`);
     }
-    throw error;
+    return error;
   }
 }
 ```
+
+Döndürme ile fırlatma arasındaki fark için [Error Interceptor](#error-interceptor) bölümüne bakın.
 
 ## Correlation ID Propagation
 

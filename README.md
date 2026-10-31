@@ -311,20 +311,37 @@ onRequest → HTTP call → onResponse → validators → onResponseValidated �
 
 You can also catch and transform exceptions at the interceptor layer before they reach your business logic.
 
+The contract is `onError(error, request): Promise<BaseAdapterException>`. Every failure arrives as a `BaseAdapterException`, and an error interceptor does one of two things:
+
+- **Return an exception** to continue the chain. The next error interceptor receives the returned value, and the caller receives the value returned by the last one. Use this to enrich or replace errors.
+- **Throw** to stop the chain immediately. The thrown value reaches the caller unchanged; it can be your own domain error. A method that always throws can declare its return type as `Promise<never>`.
+
 ```typescript
 import {
   HttpErrorInterceptor,
   Request,
   BaseAdapterException,
+  ServiceUnavailableException,
   UnauthorizedException,
+  isHttpException,
 } from '@yildizpay/http-adapter';
 
+// Return: replace the error and let the chain continue
+export class MaintenanceInterceptor implements HttpErrorInterceptor {
+  async onError(error: BaseAdapterException): Promise<BaseAdapterException> {
+    if (isHttpException(error) && error.response.status === 503) {
+      return new ServiceUnavailableException(error.response, 'Provider is under maintenance', error.code, error);
+    }
+    return error;
+  }
+}
+
+// Throw: stop the chain and surface the error as-is
 export class GlobalErrorInterceptor implements HttpErrorInterceptor {
   async onError(error: BaseAdapterException, request: Request): Promise<never> {
     if (error instanceof UnauthorizedException) {
       await this.tokenService.refresh();
     }
-    // Re-throw so the caller can handle it
     throw error;
   }
 }
@@ -342,17 +359,30 @@ Network instability is inevitable. This adapter allows you to define robust retr
 | Fixed Delay | `RetryPolicies.fixedDelay(attempts, delayMs)` | Constant wait between every retry |
 | Linear Backoff | `RetryPolicies.linearBackoff(attempts, stepMs)` | Delay grows linearly (`attempt × stepMs`) |
 | Full Jitter | `RetryPolicies.fullJitter(attempts, baseMs)` | Fully random delay within exponential cap — best for spreading concurrent load |
-| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | AWS-recommended algorithm with widest spread across concurrent clients |
+| Decorrelated Jitter | `RetryPolicies.decorrelatedJitter(attempts, baseMs, maxDelayMs)` | Random delay between `baseMs` and a cap that triples per retry — wide spread across concurrent clients |
+
+> **`attempts` is the total number of calls, including the first one.** `RetryPolicies.exponential(3)` sends the request at most 3 times: the original call plus 2 retries.
+
+Delay before retry *n* (n = 1 for the first retry):
+
+| Policy | Delay | With defaults |
+|---|---|---|
+| Exponential Backoff | `2^n × 100 ms + random(0–50 ms)` | ~200 ms, ~400 ms |
+| Fixed Delay | `delayMs` | 1000 ms, 1000 ms |
+| Linear Backoff | `n × stepMs` | 500 ms, 1000 ms |
+| Full Jitter | `random(0, 2^n × baseMs)` | ≤ 200 ms, ≤ 400 ms |
+| Decorrelated Jitter | `random(baseMs, min(maxDelayMs, baseMs × 3^n))` — each delay is drawn independently | 100–300 ms, 100–900 ms |
+
+By default a failure is retried when `error.isRetryable()` is `true`: HTTP 429, 502, 503 and 504, timeouts, refused connections and connection resets. A **connection reset is not retried for POST and PATCH**, because the server may already have processed the request (for example, charged a card). Opt in explicitly with `retryIf()` if your endpoint is idempotent.
 
 ```typescript
 import { RetryPolicies } from '@yildizpay/http-adapter';
 
-// All policies retry on 429, 502, 503, 504 and network errors by default
-RetryPolicies.exponential(3);
-RetryPolicies.fixedDelay(3, 1000);          // 1 s between each attempt
-RetryPolicies.linearBackoff(3, 500);        // 500 ms, 1000 ms, 1500 ms
-RetryPolicies.fullJitter(3, 100);           // random within [0, 2^attempt * 100 ms]
-RetryPolicies.decorrelatedJitter(3, 100);   // AWS decorrelated jitter, cap 30 s
+RetryPolicies.exponential(3);               // up to 3 calls: waits ~200 ms, then ~400 ms
+RetryPolicies.fixedDelay(3, 1000);          // waits 1 s before each retry
+RetryPolicies.linearBackoff(3, 500);        // waits 500 ms, then 1000 ms
+RetryPolicies.fullJitter(3, 100);           // random within [0, 2^n * 100 ms]
+RetryPolicies.decorrelatedJitter(3, 100);   // random within [100 ms, min(30 s, 100 * 3^n ms)]
 ```
 
 ### Custom Retry Predicate
@@ -536,14 +566,16 @@ import {
 } from '@yildizpay/http-adapter';
 
 export class GlobalErrorInterceptor implements HttpErrorInterceptor {
-  async onError(error: BaseAdapterException, request: Request): Promise<BadRequestException> {
+  async onError(error: BaseAdapterException, request: Request): Promise<BaseAdapterException> {
     if (error instanceof UnauthorizedException) {
-      console.error(`Unauthorized access to ${error.requestContext?.url}! Redirecting to login...`);
+      console.error(`Unauthorized access to ${request.endpoint}! Redirecting to login...`);
     }
-    throw error;
+    return error;
   }
 }
 ```
+
+See [Error Interceptor](#error-interceptor) for the difference between returning and throwing.
 
 ## Correlation ID Propagation
 

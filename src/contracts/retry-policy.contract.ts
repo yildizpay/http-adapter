@@ -29,7 +29,7 @@ export interface RetryContext {
  */
 export abstract class RetryPolicy {
   /**
-   * The maximum number of retry attempts allowed.
+   * The maximum number of attempts, including the first call (`3` = 1 call + 2 retries).
    */
   public abstract maxAttempts: number;
 
