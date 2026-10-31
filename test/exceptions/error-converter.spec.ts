@@ -1,3 +1,4 @@
+import { HttpExceptionFactory } from '../../src/exceptions/http-exception.factory';
 import { ErrorConverter } from '../../src/core/error.converter';
 import {
   HttpException,
@@ -43,6 +44,46 @@ describe('ErrorConverter', () => {
   });
 
   describe('requestContext propagation', () => {
+    const context = { method: 'POST', url: 'https://api.example.com/pay', correlationId: 'c-1' };
+
+    it('should attach context to an HttpException that has none', () => {
+      const original = HttpExceptionFactory.createFromResponse(500);
+
+      const result = ErrorConverter.toAdapterException(original, context) as HttpException;
+
+      expect(result).toBe(original);
+      expect(result.response.requestContext).toEqual(context);
+    });
+
+    it('should attach context to a NetworkException that has none', () => {
+      const original = new ConnectionRefusedException();
+
+      const result = ErrorConverter.toAdapterException(original, context) as NetworkException;
+
+      expect(result.requestContext).toEqual(context);
+    });
+
+    it('should attach context to an UnknownException that has none', () => {
+      const result = ErrorConverter.toAdapterException(new UnknownException('x'), context);
+
+      expect((result as UnknownException).requestContext).toEqual(context);
+    });
+
+    it('should keep context that is already set', () => {
+      const existing = { method: 'GET', url: 'https://other.example.com', correlationId: 'c-0' };
+      const original = new TimeoutException('t', 'ETIMEDOUT', undefined, existing);
+
+      const result = ErrorConverter.toAdapterException(original, context) as NetworkException;
+
+      expect(result.requestContext).toBe(existing);
+    });
+
+    it('should leave exceptions without a context field untouched', () => {
+      const original = new CircuitBreakerOpenException();
+
+      expect(ErrorConverter.toAdapterException(original, context)).toEqual(original);
+    });
+
     it('should attach correlationId to HttpException response when provided', () => {
       const rawError = { status: 404, message: 'Not Found' };
       const result = ErrorConverter.toAdapterException(rawError, {

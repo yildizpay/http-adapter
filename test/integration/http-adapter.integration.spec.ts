@@ -172,7 +172,7 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('request context on errors (#35)', () => {
-    it.failing('attaches method, url and correlation id to HTTP errors', async () => {
+    it('attaches method, url and correlation id to HTTP errors', async () => {
       server.route('/boom', status(500));
       const req = request().setEndpoint('/boom').build();
 
@@ -185,7 +185,7 @@ describe('HttpAdapter (integration)', () => {
       });
     });
 
-    it.failing('attaches request context to network errors', async () => {
+    it('attaches request context to network errors', async () => {
       const baseUrl = await refusedUrl();
 
       const error = (await sendAndCatch(
