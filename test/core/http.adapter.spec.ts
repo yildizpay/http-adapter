@@ -10,6 +10,7 @@ import { HttpClientContract } from '../../src/contracts/http-client.contract';
 import { ValidationException } from '../../src/exceptions/validation.exception';
 import { RetryPolicies } from '../../src/resilience/retry.policies';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
+import { UnknownException } from '../../src/exceptions/unknown.exception';
 
 jest.mock('../../src/core/default-http-client', () => ({
   defaultHttpClient: {
@@ -475,6 +476,103 @@ describe('HttpAdapter', () => {
       await adapter.send(request);
 
       expect(interceptor.onResponseValidated).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('request interceptor failures', () => {
+    const failingInterceptor = (error: unknown): HttpInterceptor => ({
+      onRequest: async () => {
+        throw error;
+      },
+    });
+
+    it('should convert a plain error into an UnknownException with request context', async () => {
+      const cause = new Error('token provider failed');
+      adapter = HttpAdapter.create([failingInterceptor(cause)], undefined, mockHttpClient);
+
+      const error = await adapter.send(request).catch((e) => e);
+
+      expect(error).toBeInstanceOf(UnknownException);
+      expect(error.cause).toBe(cause);
+      expect(error.requestContext).toEqual({
+        method: 'GET',
+        url: 'https://api.example.com/test',
+        correlationId: request.systemCorrelationId,
+      });
+      expect(mockHttpClient.request).not.toHaveBeenCalled();
+    });
+
+    it('should rethrow a BaseAdapterException from an interceptor as-is', async () => {
+      const original = new TimeoutException('token endpoint timed out');
+      adapter = HttpAdapter.create([failingInterceptor(original)], undefined, mockHttpClient);
+
+      await expect(adapter.send(request)).rejects.toBe(original);
+    });
+
+    it('should run error interceptors with the original request', async () => {
+      const onError = jest.fn(async (e) => e);
+      adapter = HttpAdapter.create(
+        [failingInterceptor(new Error('boom')), { onError }],
+        undefined,
+        mockHttpClient,
+      );
+
+      await adapter.send(request).catch(() => undefined);
+
+      expect(onError).toHaveBeenCalledWith(expect.any(UnknownException), request);
+    });
+
+    it('should notify the observer', async () => {
+      const onRequestFailure = jest.fn();
+      adapter = HttpAdapter.builder()
+        .withInterceptor(failingInterceptor(new Error('boom')))
+        .withHttpClient(mockHttpClient)
+        .withObserver({ onRequestFailure })
+        .build();
+
+      await adapter.send(request).catch(() => undefined);
+
+      expect(onRequestFailure).toHaveBeenCalledWith(
+        expect.any(UnknownException),
+        expect.any(Number),
+      );
+    });
+
+    it('should omit request context when the URL is invalid', async () => {
+      const invalid = new Request('not a url', '/x', HttpMethod.GET);
+      adapter = HttpAdapter.create(
+        [failingInterceptor(new Error('boom'))],
+        undefined,
+        mockHttpClient,
+      );
+
+      const error = await adapter.send(invalid).catch((e) => e);
+
+      expect(error).toBeInstanceOf(UnknownException);
+      expect(error.requestContext).toBeUndefined();
+    });
+  });
+
+  describe('observer on non-adapter errors', () => {
+    it('should notify the observer and rethrow the original error from an error interceptor', async () => {
+      const custom = new Error('domain error');
+      const onRequestFailure = jest.fn();
+      mockHttpClient.request.mockRejectedValueOnce(new Error('network'));
+      adapter = HttpAdapter.builder()
+        .withInterceptor({
+          onError: async () => {
+            throw custom;
+          },
+        })
+        .withHttpClient(mockHttpClient)
+        .withObserver({ onRequestFailure })
+        .build();
+
+      await expect(adapter.send(request)).rejects.toBe(custom);
+      expect(onRequestFailure).toHaveBeenCalledWith(
+        expect.any(UnknownException),
+        expect.any(Number),
+      );
     });
   });
 
