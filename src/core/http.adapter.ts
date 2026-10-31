@@ -24,6 +24,7 @@ import {
 import { HttpAdapterObserver } from '../observability/http-adapter-observer';
 import { RequestOverrides } from '../models/request-overrides';
 import { HttpAdapterContract } from '../contracts/http-adapter.contract';
+import { joinUrl } from '../common/utils/url';
 
 interface InterceptorGroups {
   request: HttpRequestInterceptor[];
@@ -266,15 +267,15 @@ export class HttpAdapter implements HttpAdapterContract {
   }
 
   /**
-   * Builds the final request URL including query parameters.
+   * Builds the final request URL: the base URL path is kept, the endpoint is appended,
+   * and query parameters are merged into any query string already on the endpoint.
    *
    * @private
    */
   private buildRequestUrl(request: Request): URL {
-    const url = new URL(request.endpoint, request.baseUrl);
-    const searchParams = new URLSearchParams(request.queryParams);
-    if (searchParams.toString()) {
-      url.search = searchParams.toString();
+    const url = joinUrl(request.baseUrl, request.endpoint);
+    for (const [key, value] of Object.entries(request.queryParams)) {
+      url.searchParams.set(key, value);
     }
     return url;
   }
