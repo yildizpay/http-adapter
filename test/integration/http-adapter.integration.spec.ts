@@ -198,10 +198,18 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('URL building (#37)', () => {
-    it.failing('keeps the base URL path', async () => {
+    it('keeps the base URL path', async () => {
       await adapter.send(request(`${server.baseUrl}/v1`).setEndpoint('/users').build());
 
       expect(server.lastRequest.path).toBe('/v1/users');
+    });
+
+    it('merges query params into a query string on the endpoint', async () => {
+      await adapter.send(
+        request().setEndpoint('/search?q=kart').addQueryParam('page', '2').build(),
+      );
+
+      expect(server.lastRequest.query).toEqual({ q: 'kart', page: '2' });
     });
   });
 
