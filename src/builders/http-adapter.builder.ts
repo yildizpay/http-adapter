@@ -130,13 +130,13 @@ export class HttpAdapterBuilder {
    * @returns A new `HttpAdapter` ready to send requests.
    */
   public build(): HttpAdapter {
-    return HttpAdapter.create(
-      this.interceptors,
-      this.retryPolicy,
-      this.httpClient,
-      this.circuitBreaker,
-      this.correlationIdConfig,
-      this.observer,
-    );
+    return HttpAdapter.create({
+      interceptors: this.interceptors,
+      retryPolicy: this.retryPolicy,
+      httpClient: this.httpClient,
+      circuitBreaker: this.circuitBreaker,
+      correlationId: this.correlationIdConfig,
+      observer: this.observer,
+    });
   }
 }

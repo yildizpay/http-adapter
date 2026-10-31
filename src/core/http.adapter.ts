@@ -21,10 +21,11 @@ import type { RequestContext } from '../models/request-context';
 import type { RequestOverrides } from '../models/request-overrides';
 import { Response } from '../models/response';
 import type { HttpAdapterObserver } from '../observability/http-adapter-observer';
-import type { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
+import { CircuitBreaker } from '../resilience/circuit-breaker/circuit-breaker';
 import { RetryExecutor } from '../resilience/retry-executor';
 import { defaultHttpClient } from './default-http-client';
 import { ErrorConverter } from './error.converter';
+import type { HttpAdapterOptions } from './http-adapter-options';
 
 interface InterceptorGroups {
   request: HttpRequestInterceptor[];
@@ -71,39 +72,41 @@ export class HttpAdapter implements HttpAdapterContract {
   }
 
   /**
-   * Factory method to create a properly configured HttpAdapter.
+   * Creates an HttpAdapter from an options object.
    *
-   * @param interceptors - A list of interceptors to register.
-   * @param retryPolicy - An optional retry policy for resilience.
-   * @param httpClient - An optional custom HTTP client (defaults to `defaultHttpClient`).
-   * @param circuitBreaker - An optional circuit breaker instance.
-   * @param correlationIdConfig - An optional global correlation ID propagation configuration.
-   * @param observer - An optional observer for request lifecycle telemetry.
+   * `HttpAdapter.builder()` is the recommended way to configure an adapter; this is the
+   * equivalent for configuration that already lives in an object.
+   *
+   * @example
+   * ```typescript
+   * const adapter = HttpAdapter.create({
+   *   interceptors: [new AuthInterceptor()],
+   *   retryPolicy: RetryPolicies.exponential(3),
+   *   circuitBreaker: { failureThreshold: 5 },
+   * });
+   * ```
+   *
+   * @param options - Adapter configuration. Every option is optional.
    * @returns A new instance of `HttpAdapter`.
    */
-  public static create(
-    interceptors: HttpInterceptor[],
-    retryPolicy?: RetryPolicy,
-    httpClient?: HttpClientContract,
-    circuitBreaker?: CircuitBreaker,
-    correlationIdConfig?: CorrelationIdConfig,
-    observer?: HttpAdapterObserver,
-  ): HttpAdapter {
+  public static create(options: HttpAdapterOptions = {}): HttpAdapter {
+    const { circuitBreaker } = options;
     return new HttpAdapter(
-      interceptors,
-      httpClient ?? defaultHttpClient,
-      retryPolicy,
-      circuitBreaker,
-      correlationIdConfig,
-      observer,
+      [...(options.interceptors ?? [])],
+      options.httpClient ?? defaultHttpClient,
+      options.retryPolicy,
+      circuitBreaker === undefined || circuitBreaker instanceof CircuitBreaker
+        ? circuitBreaker
+        : new CircuitBreaker(circuitBreaker),
+      options.correlationId,
+      options.observer,
     );
   }
 
   /**
    * Returns a new `HttpAdapterBuilder` for fluent, chainable adapter configuration.
    *
-   * Prefer this over `HttpAdapter.create()` when configuring multiple options,
-   * as it produces more readable and maintainable setup code.
+   * This is the recommended way to configure an adapter.
    *
    * @example
    * ```typescript

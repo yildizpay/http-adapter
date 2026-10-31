@@ -5,6 +5,7 @@ import type { HttpClientContract } from '../../src/contracts/http-client.contrac
 import type { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
 import { defaultHttpClient } from '../../src/core/default-http-client';
 import { HttpAdapter } from '../../src/core/http.adapter';
+import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
 import { TimeoutException } from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
 import { ValidationException } from '../../src/exceptions/validation.exception';
@@ -39,14 +40,41 @@ describe('HttpAdapter', () => {
 
   describe('create', () => {
     it('should create an instance with default client', () => {
-      const instance = HttpAdapter.create([]);
+      const instance = HttpAdapter.create();
       expect(instance).toBeInstanceOf(HttpAdapter);
+    });
+
+    it('should send through the default client when no options are given', async () => {
+      const response = await HttpAdapter.create().send(request);
+
+      expect(response.status).toBe(200);
+      expect(mockHttpClient.request).toHaveBeenCalledTimes(1);
+    });
+
+    it('should create a circuit breaker from options', async () => {
+      mockHttpClient.request.mockRejectedValue(new Error('down'));
+      adapter = HttpAdapter.create({ circuitBreaker: { failureThreshold: 1 } });
+
+      await expect(adapter.send(request)).rejects.toThrow('down');
+      await expect(adapter.send(request)).rejects.toBeInstanceOf(CircuitBreakerOpenException);
+      expect(mockHttpClient.request).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not pick up interceptors added to the options array after creation', async () => {
+      const interceptors: HttpInterceptor[] = [];
+      adapter = HttpAdapter.create({ interceptors });
+      const late = { onRequest: vi.fn(async (r: Request) => r) };
+      interceptors.push(late);
+
+      await adapter.send(request);
+
+      expect(late.onRequest).not.toHaveBeenCalled();
     });
   });
 
   describe('send', () => {
     it('should send request via http client', async () => {
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
 
       const response = await adapter.send(request);
 
@@ -92,7 +120,10 @@ describe('HttpAdapter', () => {
         },
       };
 
-      adapter = HttpAdapter.create([interceptor1, interceptor2], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({
+        interceptors: [interceptor1, interceptor2],
+        httpClient: mockHttpClient,
+      });
 
       await adapter.send(request);
 
@@ -117,7 +148,7 @@ describe('HttpAdapter', () => {
         },
       };
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
 
       await expect(adapter.send(request)).rejects.toThrow('intercepted error');
     });
@@ -132,7 +163,7 @@ describe('HttpAdapter', () => {
         },
       };
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
 
       await expect(adapter.send(request)).rejects.toThrow('partial interceptor error');
     });
@@ -152,7 +183,7 @@ describe('HttpAdapter', () => {
         },
       };
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       const res = await adapter.send(request);
 
       expect(res.data).toEqual({ success: true });
@@ -174,12 +205,12 @@ describe('HttpAdapter', () => {
         onRequest: async (req) => req,
       };
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       await expect(adapter.send(request)).rejects.toThrow('network failed completely');
     });
 
     it('should append query params to url', async () => {
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       request.addQueryParam('q', 'search');
 
       await adapter.send(request);
@@ -194,7 +225,7 @@ describe('HttpAdapter', () => {
     it('should use retry policy calls when provided', async () => {
       const mockRetryPolicy = RetryPolicies.exponential(3);
 
-      adapter = HttpAdapter.create([], mockRetryPolicy, mockHttpClient);
+      adapter = HttpAdapter.create({ retryPolicy: mockRetryPolicy, httpClient: mockHttpClient });
 
       await adapter.send(request);
 
@@ -207,7 +238,7 @@ describe('HttpAdapter', () => {
       const circuitBreaker = new CircuitBreaker();
       vi.spyOn(circuitBreaker, 'execute');
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, circuitBreaker);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient, circuitBreaker: circuitBreaker });
 
       await adapter.send(request);
 
@@ -215,7 +246,7 @@ describe('HttpAdapter', () => {
     });
 
     it('should default to empty params in create', () => {
-      const adapter = HttpAdapter.create([]);
+      const adapter = HttpAdapter.create();
       // Implicitly checks default httpClient and undefined retryPolicy
       expect(adapter).toBeDefined();
     });
@@ -232,14 +263,14 @@ describe('HttpAdapter', () => {
         },
       };
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       await expect(adapter.send(request)).rejects.toThrow('rethrown error');
     });
 
     it('should handle searchParams being empty string', async () => {
       request = new Request('https://api.example.com', '/test');
       // No query params added
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(request);
 
       expect(mockHttpClient.request).toHaveBeenCalledWith(
@@ -256,7 +287,7 @@ describe('HttpAdapter', () => {
         .setTimeout(timeout)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(request);
 
       expect(mockHttpClient.request).toHaveBeenCalledWith(
@@ -273,7 +304,7 @@ describe('HttpAdapter', () => {
         headers: undefined as unknown as Record<string, string>,
       });
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       const response = await adapter.send(request);
 
       expect(response.headers).toBeNull();
@@ -294,7 +325,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       await adapter.send(requestWithValidator);
 
       expect(order).toEqual(['onResponse', 'validator']);
@@ -307,7 +338,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(requestWithValidator);
 
       expect(validator.validate).toHaveBeenCalledTimes(1);
@@ -324,7 +355,7 @@ describe('HttpAdapter', () => {
         .validateWith(v1, v2)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(requestWithValidators);
 
       expect(order).toEqual([1, 2]);
@@ -345,7 +376,7 @@ describe('HttpAdapter', () => {
         .validateWith(v1, v2)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await expect(adapter.send(requestWithValidators)).rejects.toBeInstanceOf(ValidationException);
       expect(v2.validate).not.toHaveBeenCalled();
     });
@@ -359,7 +390,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await expect(adapter.send(requestWithValidator)).rejects.toBeDefined();
       expect(validator.validate).not.toHaveBeenCalled();
     });
@@ -372,7 +403,7 @@ describe('HttpAdapter', () => {
         .validateWith(asyncValidator)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(requestWithValidator);
 
       expect(asyncValidator.validate).toHaveBeenCalledTimes(1);
@@ -393,7 +424,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       await adapter.send(requestWithValidator);
 
       expect(order).toEqual(['validator', 'onResponseValidated']);
@@ -412,7 +443,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       await expect(adapter.send(requestWithValidator)).rejects.toBeInstanceOf(ValidationException);
       expect(interceptor.onResponseValidated).not.toHaveBeenCalled();
     });
@@ -432,7 +463,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       await expect(adapter.send(requestWithValidator)).rejects.toBeInstanceOf(ValidationException);
       expect(interceptor.onResponse).toHaveBeenCalledTimes(1);
     });
@@ -446,7 +477,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       const err = await adapter.send(requestWithValidator).catch((e) => e);
 
       expect(err).toBeInstanceOf(ValidationException);
@@ -462,7 +493,7 @@ describe('HttpAdapter', () => {
         .validateWith(validator)
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       const err = await adapter.send(requestWithValidator).catch((e) => e);
 
       expect(err).toBe(validationErr);
@@ -473,7 +504,7 @@ describe('HttpAdapter', () => {
         onResponseValidated: vi.fn().mockImplementation(async (r: Response) => r),
       };
 
-      adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
       await adapter.send(request);
 
       expect(interceptor.onResponseValidated).toHaveBeenCalledTimes(1);
@@ -489,7 +520,10 @@ describe('HttpAdapter', () => {
 
     it('should convert a plain error into an UnknownException with request context', async () => {
       const cause = new Error('token provider failed');
-      adapter = HttpAdapter.create([failingInterceptor(cause)], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({
+        interceptors: [failingInterceptor(cause)],
+        httpClient: mockHttpClient,
+      });
 
       const error = await adapter.send(request).catch((e) => e);
 
@@ -505,18 +539,20 @@ describe('HttpAdapter', () => {
 
     it('should rethrow a BaseAdapterException from an interceptor as-is', async () => {
       const original = new TimeoutException('token endpoint timed out');
-      adapter = HttpAdapter.create([failingInterceptor(original)], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({
+        interceptors: [failingInterceptor(original)],
+        httpClient: mockHttpClient,
+      });
 
       await expect(adapter.send(request)).rejects.toBe(original);
     });
 
     it('should run error interceptors with the original request', async () => {
       const onError = vi.fn(async (e) => e);
-      adapter = HttpAdapter.create(
-        [failingInterceptor(new Error('boom')), { onError }],
-        undefined,
-        mockHttpClient,
-      );
+      adapter = HttpAdapter.create({
+        interceptors: [failingInterceptor(new Error('boom')), { onError }],
+        httpClient: mockHttpClient,
+      });
 
       await adapter.send(request).catch(() => undefined);
 
@@ -541,11 +577,10 @@ describe('HttpAdapter', () => {
 
     it('should omit request context when the URL is invalid', async () => {
       const invalid = new Request('not a url', '/x', HttpMethod.GET);
-      adapter = HttpAdapter.create(
-        [failingInterceptor(new Error('boom'))],
-        undefined,
-        mockHttpClient,
-      );
+      adapter = HttpAdapter.create({
+        interceptors: [failingInterceptor(new Error('boom'))],
+        httpClient: mockHttpClient,
+      });
 
       const error = await adapter.send(invalid).catch((e) => e);
 
@@ -579,7 +614,7 @@ describe('HttpAdapter', () => {
 
   describe('correlation ID propagation', () => {
     it('should not add correlation ID header by default', async () => {
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(request);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
@@ -587,9 +622,12 @@ describe('HttpAdapter', () => {
     });
 
     it('should add default x-correlation-id header when adapter config is set', async () => {
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
-        enabled: true,
-        header: 'x-correlation-id',
+      adapter = HttpAdapter.create({
+        httpClient: mockHttpClient,
+        correlationId: {
+          enabled: true,
+          header: 'x-correlation-id',
+        },
       });
       await adapter.send(request);
 
@@ -598,9 +636,12 @@ describe('HttpAdapter', () => {
     });
 
     it('should use custom header name from adapter config', async () => {
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
-        enabled: true,
-        header: 'x-request-id',
+      adapter = HttpAdapter.create({
+        httpClient: mockHttpClient,
+        correlationId: {
+          enabled: true,
+          header: 'x-request-id',
+        },
       });
       await adapter.send(request);
 
@@ -615,7 +656,7 @@ describe('HttpAdapter', () => {
         .withCorrelationId()
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(req);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
@@ -628,9 +669,12 @@ describe('HttpAdapter', () => {
         .withCorrelationId('x-trace-id')
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
-        enabled: true,
-        header: 'x-correlation-id',
+      adapter = HttpAdapter.create({
+        httpClient: mockHttpClient,
+        correlationId: {
+          enabled: true,
+          header: 'x-correlation-id',
+        },
       });
       await adapter.send(req);
 
@@ -645,9 +689,12 @@ describe('HttpAdapter', () => {
         .withCorrelationId()
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
-        enabled: true,
-        header: 'x-request-id',
+      adapter = HttpAdapter.create({
+        httpClient: mockHttpClient,
+        correlationId: {
+          enabled: true,
+          header: 'x-request-id',
+        },
       });
       await adapter.send(req);
 
@@ -661,9 +708,12 @@ describe('HttpAdapter', () => {
         .withoutCorrelationId()
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient, undefined, {
-        enabled: true,
-        header: 'x-correlation-id',
+      adapter = HttpAdapter.create({
+        httpClient: mockHttpClient,
+        correlationId: {
+          enabled: true,
+          header: 'x-correlation-id',
+        },
       });
       await adapter.send(req);
 
@@ -677,7 +727,7 @@ describe('HttpAdapter', () => {
         .withoutCorrelationId()
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(req);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
@@ -690,7 +740,7 @@ describe('HttpAdapter', () => {
         .withCorrelationId()
         .build();
 
-      adapter = HttpAdapter.create([], undefined, mockHttpClient);
+      adapter = HttpAdapter.create({ httpClient: mockHttpClient });
       await adapter.send(req);
 
       const sentHeaders = mockHttpClient.request.mock.calls[0]![0].headers!;
@@ -711,7 +761,7 @@ describe('HttpAdapter', () => {
           .withRetryPolicy(requestPolicy)
           .build();
 
-        adapter = HttpAdapter.create([], undefined, mockHttpClient);
+        adapter = HttpAdapter.create({ httpClient: mockHttpClient });
         await adapter.send(req);
 
         expect(mockHttpClient.request).toHaveBeenCalledTimes(2);
@@ -725,7 +775,10 @@ describe('HttpAdapter', () => {
           .withoutRetry()
           .build();
 
-        adapter = HttpAdapter.create([], RetryPolicies.fixedDelay(3, 0), mockHttpClient);
+        adapter = HttpAdapter.create({
+          retryPolicy: RetryPolicies.fixedDelay(3, 0),
+          httpClient: mockHttpClient,
+        });
 
         await expect(adapter.send(req)).rejects.toThrow();
         expect(mockHttpClient.request).toHaveBeenCalledTimes(1);
@@ -744,7 +797,7 @@ describe('HttpAdapter', () => {
           .withCircuitBreaker(requestCb)
           .build();
 
-        adapter = HttpAdapter.create([], undefined, mockHttpClient, adapterCb);
+        adapter = HttpAdapter.create({ httpClient: mockHttpClient, circuitBreaker: adapterCb });
 
         await expect(adapter.send(req)).rejects.toThrow();
         expect(requestCb.getState()).toBe('OPEN');
@@ -758,7 +811,7 @@ describe('HttpAdapter', () => {
         const warmUpReq = new RequestBuilder('https://api.example.com')
           .setEndpoint('/test')
           .build();
-        adapter = HttpAdapter.create([], undefined, mockHttpClient, adapterCb);
+        adapter = HttpAdapter.create({ httpClient: mockHttpClient, circuitBreaker: adapterCb });
         await expect(adapter.send(warmUpReq)).rejects.toThrow();
 
         mockHttpClient.request.mockResolvedValue({ data: {}, status: 200, headers: {} });
@@ -793,11 +846,10 @@ describe('HttpAdapter', () => {
         };
 
         const loggingInterceptor = new LoggingInterceptor();
-        adapter = HttpAdapter.create(
-          [loggingInterceptor, authInterceptor],
-          undefined,
-          mockHttpClient,
-        );
+        adapter = HttpAdapter.create({
+          interceptors: [loggingInterceptor, authInterceptor],
+          httpClient: mockHttpClient,
+        });
 
         const req = new RequestBuilder('https://api.example.com')
           .setEndpoint('/test')
@@ -826,7 +878,7 @@ describe('HttpAdapter', () => {
           },
         };
 
-        adapter = HttpAdapter.create([i1, i2], undefined, mockHttpClient);
+        adapter = HttpAdapter.create({ interceptors: [i1, i2], httpClient: mockHttpClient });
 
         const req = new RequestBuilder('https://api.example.com')
           .setEndpoint('/test')
@@ -849,7 +901,7 @@ describe('HttpAdapter', () => {
           },
         };
 
-        adapter = HttpAdapter.create([interceptor], undefined, mockHttpClient);
+        adapter = HttpAdapter.create({ interceptors: [interceptor], httpClient: mockHttpClient });
         const req = new RequestBuilder('https://api.example.com').setEndpoint('/test').build();
 
         await adapter.send(req);
