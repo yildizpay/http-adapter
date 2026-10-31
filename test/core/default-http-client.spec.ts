@@ -185,7 +185,7 @@ describe('FetchHttpClient', () => {
         url: 'https://api.example.com',
         method: HttpMethod.POST,
         headers: { 'content-type': 'text/plain' },
-        data: { a: 1 },
+        rawBody: 'hello',
       });
 
       expect(sentHeaders()).toEqual({ 'content-type': 'text/plain' });

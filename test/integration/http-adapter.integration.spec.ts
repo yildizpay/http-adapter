@@ -169,12 +169,31 @@ describe('HttpAdapter (integration)', () => {
   });
 
   describe('body serialization (#36)', () => {
-    it.failing('encodes form bodies as application/x-www-form-urlencoded', async () => {
+    it('encodes form bodies as application/x-www-form-urlencoded', async () => {
       await adapter.send(
         request().setEndpoint('/form').asFormUrlEncoded().setBody({ a: '1', b: 'x y' }).build(),
       );
 
       expect(server.lastRequest.bodyText).toBe('a=1&b=x+y');
+    });
+
+    it('sends a raw XML body as-is', async () => {
+      const xml = '<CC5Request><Name>api</Name><Total>10.00</Total></CC5Request>';
+
+      await adapter.send(request().setEndpoint('/xml').asXml().setRawBody(xml).build());
+
+      expect(server.lastRequest.headers['content-type']).toBe('text/xml');
+      expect(server.lastRequest.bodyText).toBe(xml);
+    });
+
+    it('rejects an object body with a non-JSON, non-form Content-Type', async () => {
+      const error = await sendAndCatch(
+        request().setEndpoint('/xml').asXml().setBody({ a: 1 }).build(),
+      );
+
+      expect(error).toBeInstanceOf(BaseAdapterException);
+      expect((error as BaseAdapterException).cause).toBeInstanceOf(TypeError);
+      expect(server.requests).toHaveLength(0);
     });
   });
 
@@ -254,7 +273,7 @@ describe('HttpAdapter (integration)', () => {
 
     it('lets a lowercase content-type override the default', async () => {
       await adapter.send(
-        request().setEndpoint('/').addHeader('content-type', 'text/plain').setBody({}).build(),
+        request().setEndpoint('/').addHeader('content-type', 'text/plain').setRawBody('hi').build(),
       );
 
       expect(server.lastRequest.headers['content-type']).toBe('text/plain');

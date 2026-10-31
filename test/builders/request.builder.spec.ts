@@ -91,6 +91,20 @@ describe('RequestBuilder', () => {
     });
   });
 
+  describe('setRawBody', () => {
+    it('should pass the raw body to the request', () => {
+      expect(builder.setRawBody('<x/>').build().rawBody).toBe('<x/>');
+    });
+
+    it('should be cleared by setBody', () => {
+      expect(builder.setRawBody('<x/>').setBody({ a: 1 }).build().rawBody).toBeUndefined();
+    });
+
+    it('should leave rawBody undefined by default', () => {
+      expect(builder.build().rawBody).toBeUndefined();
+    });
+  });
+
   describe('Header Management', () => {
     it('should add single header', () => {
       const request = builder.addHeader('Authorization', 'Bearer token').build();

@@ -1,6 +1,7 @@
 // Core
 export * from './core/http.adapter';
 export * from './core/default-http-client';
+export * from './core/body-serializer';
 
 // Builders
 export * from './builders/request.builder';

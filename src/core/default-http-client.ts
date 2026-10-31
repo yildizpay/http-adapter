@@ -6,12 +6,8 @@ import {
 import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
 import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
-import { HttpMethod } from '../common/enums/http-method.enum';
-import { HttpBody } from '../common/types/http.types';
 import { deleteHeader, findHeaderKey } from '../common/utils/headers';
-
-/** Methods whose requests carry a body by definition; an empty body is still sent for them. */
-const BODY_METHODS = new Set<string>([HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH]);
+import { serializeRequestBody } from './body-serializer';
 
 /**
  * The default HTTP client instance based on native Fetch API (Node 18+).
@@ -23,14 +19,13 @@ export class FetchHttpClient implements HttpClientContract {
   public async request<T = unknown>(
     config: HttpClientRequestConfig,
   ): Promise<HttpClientResponse<T>> {
+    const body = serializeRequestBody(config);
     const controller = new AbortController();
     let timeoutId: NodeJS.Timeout | undefined;
 
     if (config.timeout && config.timeout > 0) {
       timeoutId = setTimeout(() => controller.abort(), config.timeout);
     }
-
-    const body = FetchHttpClient.serializeBody(config.method, config.data);
 
     try {
       const response = await fetch(config.url, {
@@ -93,17 +88,6 @@ export class FetchHttpClient implements HttpClientContract {
       result['Content-Type'] = 'application/json';
     }
     return result;
-  }
-
-  /**
-   * Serializes the request body. GET and HEAD never carry a body. Other methods without
-   * body semantics (DELETE, OPTIONS) only send one when it has content, so a request that
-   * never set a body does not send `"{}"`.
-   */
-  private static serializeBody(method: HttpMethod, data?: HttpBody | null): string | undefined {
-    if (method === HttpMethod.GET || method === HttpMethod.HEAD || !data) return undefined;
-    if (!BODY_METHODS.has(method) && Object.keys(data).length === 0) return undefined;
-    return JSON.stringify(data);
   }
 }
 

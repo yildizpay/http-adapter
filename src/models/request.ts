@@ -46,6 +46,7 @@ export class Request {
     public readonly validators: ResponseValidator[] = [],
     public readonly correlationIdConfig?: CorrelationIdConfig,
     public readonly overrides?: RequestOverrides,
+    public readonly rawBody?: string,
   ) {
     this.systemCorrelationId = crypto.randomUUID();
     this.timestamp = new Date();
@@ -105,6 +106,7 @@ export class Request {
       headers: this.headers,
       queryParams: this.queryParams,
       body: this.body,
+      ...(this.rawBody !== undefined && { rawBody: this.rawBody }),
       options: this.options,
     };
   }
