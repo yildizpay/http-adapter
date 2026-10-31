@@ -22,6 +22,7 @@ Closes #<!-- issue number -->
 
 - [ ] Tests added or updated
 - [ ] Test coverage is at 100%
-- [ ] `pnpm lint` passes
-- [ ] `pnpm test` passes
+- [ ] `pnpm typecheck` passes
+- [ ] `pnpm check` passes
+- [ ] `pnpm test:coverage` passes
 - [ ] CHANGELOG.md updated (if applicable)
