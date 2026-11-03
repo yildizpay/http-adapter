@@ -188,6 +188,30 @@ function handleError(error: unknown): void {
 }
 ```
 
+### Delivery Outcome — Did the Request Reach the Server?
+
+For payments, the dangerous failure is the one whose effect is unknown: if a provider timed out *after* charging the card, sending the payment again, or to another provider, charges the customer twice. Every exception carries `deliveryOutcome`:
+
+| Value | Meaning | Typical causes |
+|---|---|---|
+| `not_sent` | The request was never written to the network. Safe to send again, anywhere. | DNS failure, connection refused, host unreachable, timeout while connecting, TLS errors, open circuit breaker, a request interceptor threw, the body could not be serialized |
+| `unknown` | The request may have reached the server. Treat it as possibly processed. | Timeout after the request was sent, connection reset, unclassified errors |
+| `received` | The server answered. | Any HTTP error status, a response that failed validation, a body that broke off after the headers arrived |
+
+```typescript
+import { isNotSent, isDeliveryUnknown } from '@yildizpay/http-adapter';
+
+try {
+  return await providerA.send(charge);
+} catch (error) {
+  if (isNotSent(error)) return providerB.send(charge); // provably no effect at provider A
+  if (isDeliveryUnknown(error)) return reconcile(charge); // query provider A before doing anything else
+  throw error; // received: provider A answered, e.g. declined
+}
+```
+
+`not_sent` is only reported with positive evidence; anything uncertain is `unknown`. The default client measures it from undici's `diagnostics_channel` events, without dependencies, so a timeout while connecting is told apart from a timeout after sending. Custom `HttpClientContract` implementations can set `deliveryOutcome` on the errors they throw; otherwise it is derived from the error code, defaulting to `unknown`. An error interceptor that returns a different exception decides that exception's outcome. `getDeliveryOutcome(error)` returns the outcome of any value, and `isReceived(error)` completes the guards.
+
 ### `isRetryable()` Signal
 
 Each exception exposes an `isRetryable(): boolean` method that reflects whether the failure is transient and worth retrying. This is useful when implementing custom retry decorators or deciding at the application layer whether to propagate or retry an error.

@@ -188,6 +188,30 @@ function handleError(error: unknown): void {
 }
 ```
 
+### Teslimat Sonucu — İstek Sunucuya Ulaştı mı?
+
+Ödemelerde tehlikeli olan hata, etkisi bilinmeyen hatadır: sağlayıcı kartı *çektikten sonra* timeout olduysa ödemeyi tekrar ya da başka bir sağlayıcıya göndermek müşteriden iki kez çeker. Her exception `deliveryOutcome` taşır:
+
+| Değer | Anlamı | Tipik nedenler |
+|---|---|---|
+| `not_sent` | İstek ağa hiç yazılmadı. Tekrar, herhangi bir yere gönderilebilir. | DNS hatası, bağlantı reddi, host'a ulaşılamaması, bağlanırken timeout, TLS hataları, açık circuit breaker, request interceptor'ın hata fırlatması, gövdenin serileştirilememesi |
+| `unknown` | İstek sunucuya ulaşmış olabilir. İşlenmiş olabileceğini varsayın. | İstek gönderildikten sonra timeout, bağlantı reset'i, sınıflandırılamayan hatalar |
+| `received` | Sunucu cevap verdi. | Herhangi bir HTTP hata durumu, doğrulamadan geçemeyen yanıt, başlıklardan sonra kesilen gövde |
+
+```typescript
+import { isNotSent, isDeliveryUnknown } from '@yildizpay/http-adapter';
+
+try {
+  return await providerA.send(charge);
+} catch (error) {
+  if (isNotSent(error)) return providerB.send(charge); // A'da kesinlikle bir etkisi olmadı
+  if (isDeliveryUnknown(error)) return reconcile(charge); // başka bir şey yapmadan önce A'yı sorgula
+  throw error; // received: A cevap verdi, örneğin reddetti
+}
+```
+
+`not_sent` yalnızca olumlu kanıtla raporlanır; belirsiz olan her şey `unknown`'dır. Varsayılan istemci bunu bağımlılık eklemeden undici'nin `diagnostics_channel` olaylarından ölçer; böylece bağlanırken oluşan timeout, gönderdikten sonra oluşan timeout'tan ayrılır. Custom `HttpClientContract` implementasyonları fırlattıkları hataya `deliveryOutcome` koyabilir; koymazlarsa sonuç hata kodundan türetilir, varsayılan `unknown`'dır. Farklı bir exception döndüren error interceptor, o exception'ın sonucuna kendisi karar verir. `getDeliveryOutcome(error)` herhangi bir değerin sonucunu döndürür; `isReceived(error)` guard'ları tamamlar.
+
 ### `isRetryable()` Sinyali
 
 Her exception, hatanın geçici olup olmadığını ve retry'a değer olup olmadığını belirten bir `isRetryable(): boolean` metodu sunar. Custom retry decorator'lar yazarken ya da uygulama katmanında hatayı tekrar denemek isteyip istemediğinize karar verirken kullanışlıdır.
