@@ -14,6 +14,7 @@ import { defaultHttpClient, FetchHttpClient } from '../../src/core/default-http-
 import { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { NotFoundException } from '../../src/exceptions/http-status.exceptions';
 import { NetworkException, TimeoutException } from '../../src/exceptions/network.exceptions';
+import { UnknownException } from '../../src/exceptions/unknown.exception';
 
 describe('FetchHttpClient', () => {
   let client: FetchHttpClient;
@@ -358,5 +359,61 @@ describe('FetchHttpClient', () => {
     expect(httpError.response).toBeDefined();
     expect(httpError.response?.status).toBe(404);
     expect(httpError.response?.data).toEqual({ error: 'Not Found' });
+  });
+
+  describe('delivery outcome (#49)', () => {
+    it('reports a body serialization failure as not_sent without calling fetch', async () => {
+      const error = await client
+        .request({
+          url: 'https://api.example.com',
+          method: HttpMethod.POST,
+          headers: { 'Content-Type': 'text/xml' },
+          data: { a: 1 },
+        })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(UnknownException);
+      expect((error as UnknownException).deliveryOutcome).toBe('not_sent');
+      expect((error as UnknownException).message).toMatch(/setRawBody/);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('keeps the message of a non-Error serialization failure generic', async () => {
+      const spy = vi.spyOn(JSON, 'stringify').mockImplementationOnce(() => {
+        throw 'not an error';
+      });
+
+      const error = await client
+        .request({ url: 'https://api.example.com', method: HttpMethod.POST, data: { a: 1 } })
+        .catch((e: unknown) => e);
+      spy.mockRestore();
+
+      expect((error as UnknownException).message).toBe('Request body serialization failed');
+      expect((error as UnknownException).deliveryOutcome).toBe('not_sent');
+    });
+
+    it('falls back to the error code when undici reported nothing (mocked fetch)', async () => {
+      const refused = Object.assign(new TypeError('fetch failed'), {
+        cause: Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }),
+      });
+      (globalThis.fetch as Mock).mockRejectedValueOnce(refused);
+
+      const error = await client
+        .request({ url: 'https://api.example.com', method: HttpMethod.GET })
+        .catch((e: unknown) => e);
+
+      expect((error as NetworkException).deliveryOutcome).toBe('not_sent');
+    });
+
+    it('reports a mocked timeout as unknown', async () => {
+      const abortError = Object.assign(new Error('aborted'), { name: 'AbortError' });
+      (globalThis.fetch as Mock).mockRejectedValueOnce(abortError);
+
+      const error = await client
+        .request({ url: 'https://api.example.com', method: HttpMethod.GET })
+        .catch((e: unknown) => e);
+
+      expect((error as TimeoutException).deliveryOutcome).toBe('unknown');
+    });
   });
 });

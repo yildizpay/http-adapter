@@ -8,19 +8,28 @@ import type {
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
 import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { NetworkExceptionFactory } from '../exceptions/network-exception.factory';
+import { UnknownException } from '../exceptions/unknown.exception';
 import { serializeRequestBody } from './body-serializer';
+import { createDeliveryState, deliveryOutcomeOf, trackDelivery } from './delivery-tracker';
 
 /**
- * The default HTTP client instance based on native Fetch API (Node 18+).
+ * The default HTTP client instance based on native Fetch API.
  *
  * This client translates our flexible request architecture to the Fetch API
  * without relying on heavy external dependencies like Axios.
+ *
+ * It reports the `deliveryOutcome` of every failure. Body serialization errors happen
+ * before anything is sent (`not_sent`). For network errors it records undici's
+ * `diagnostics_channel` events for the call, so a timeout while connecting (`not_sent`) is
+ * told apart from a timeout after the request was written (`unknown`), and a body that breaks
+ * off after the response headers arrived is `received`.
  */
 export class FetchHttpClient implements HttpClientContract {
   public async request<T = unknown>(
     config: HttpClientRequestConfig,
   ): Promise<HttpClientResponse<T>> {
-    const body = serializeRequestBody(config);
+    const body = FetchHttpClient.serialize(config);
+    const delivery = createDeliveryState();
     const controller = new AbortController();
     let timeoutId: NodeJS.Timeout | undefined;
 
@@ -29,14 +38,15 @@ export class FetchHttpClient implements HttpClientContract {
     }
 
     try {
-      const response = await fetch(config.url, {
-        method: config.method,
-        headers: FetchHttpClient.buildHeaders(config.headers, body !== undefined),
-        body,
-        signal: controller.signal,
+      const { response, responseData } = await trackDelivery(delivery, async () => {
+        const response = await fetch(config.url, {
+          method: config.method,
+          headers: FetchHttpClient.buildHeaders(config.headers, body !== undefined),
+          body,
+          signal: controller.signal,
+        });
+        return { response, responseData: await FetchHttpClient.readBody(response) };
       });
-
-      const responseData = await FetchHttpClient.readBody(response);
 
       const responseHeaders: Record<string, string> = {};
       response.headers.forEach((value, key) => {
@@ -59,11 +69,25 @@ export class FetchHttpClient implements HttpClientContract {
       };
     } catch (error: unknown) {
       if (error instanceof BaseAdapterException) throw error;
-      throw NetworkExceptionFactory.createFromNativeError(error);
+      throw NetworkExceptionFactory.createFromNativeError(
+        error,
+        undefined,
+        deliveryOutcomeOf(delivery),
+      );
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+    }
+  }
+
+  /** Serializes the body; a failure here means nothing was sent. */
+  private static serialize(config: HttpClientRequestConfig): string | undefined {
+    try {
+      return serializeRequestBody(config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Request body serialization failed';
+      throw new UnknownException(message, error, undefined, 'not_sent');
     }
   }
 
