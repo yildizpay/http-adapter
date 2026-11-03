@@ -20,7 +20,7 @@ export class ValidationException<TCause = unknown> extends BaseAdapterException 
   public override readonly cause: TCause | undefined;
 
   public constructor(message: string, response: Response, cause?: TCause) {
-    super(message, 'ERR_VALIDATION', cause);
+    super(message, 'ERR_VALIDATION', cause, 'received');
     this.response = response;
     this.cause = cause;
     Object.setPrototypeOf(this, ValidationException.prototype);

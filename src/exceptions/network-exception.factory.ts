@@ -1,4 +1,5 @@
 import type { RequestContext } from '../models/request-context';
+import { type DeliveryOutcome, isDeliveryOutcome } from './delivery-outcome';
 import {
   ConnectionRefusedException,
   DnsResolutionException,
@@ -14,6 +15,7 @@ interface ErrorLike {
   message?: unknown;
   code?: unknown;
   cause?: unknown;
+  deliveryOutcome?: unknown;
 }
 
 const TIMEOUT_NAMES = new Set(['AbortError', 'TimeoutError']);
@@ -27,6 +29,25 @@ const TIMEOUT_CODES = new Set([
 const RESET_CODES = new Set(['ECONNRESET', 'EPIPE', 'UND_ERR_SOCKET']);
 const DNS_CODES = new Set(['ENOTFOUND', 'EAI_AGAIN']);
 const UNREACHABLE_CODES = new Set(['EHOSTUNREACH', 'ENETUNREACH']);
+
+/**
+ * Codes that can only occur before a connection exists, or while TLS is still being negotiated,
+ * so no part of the request was written. Everything else is `unknown`.
+ */
+const NOT_SENT_CODES = new Set([
+  ...DNS_CODES,
+  ...UNREACHABLE_CODES,
+  'ECONNREFUSED',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+  'ERR_TLS_HANDSHAKE_TIMEOUT',
+  'CERT_HAS_EXPIRED',
+  'CERT_NOT_YET_VALID',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+]);
 
 /** How deep to follow `cause` links; guards against cycles. */
 const MAX_CAUSE_DEPTH = 5;
@@ -48,6 +69,11 @@ const MAX_CAUSE_DEPTH = 5;
  *
  * Errors are recognised by shape rather than `instanceof Error`, so errors created in
  * another realm (e.g. undici's `DOMException` under Jest's VM context) are classified too.
+ *
+ * The {@link DeliveryOutcome} is, in order: the one passed by the caller (the default client
+ * measures it), a valid `deliveryOutcome` set on the error or its `cause` chain by a custom
+ * client, or `not_sent` for codes that only occur before anything is written. Otherwise it is
+ * `unknown`.
  */
 export class NetworkExceptionFactory {
   /**
@@ -55,11 +81,13 @@ export class NetworkExceptionFactory {
    *
    * @param error - The raw error thrown by the underlying transport layer.
    * @param requestContext - Optional safe metadata about the originating request.
+   * @param deliveryOutcome - The outcome observed by the transport, when it knows it.
    * @returns A {@link NetworkException} or one of its specific subclasses.
    */
   public static createFromNativeError(
     error: unknown,
     requestContext?: RequestContext,
+    deliveryOutcome?: DeliveryOutcome,
   ): NetworkException {
     if (!isErrorLike(error)) {
       return new NetworkException(
@@ -67,6 +95,7 @@ export class NetworkExceptionFactory {
         undefined,
         undefined,
         requestContext,
+        deliveryOutcome ?? 'unknown',
       );
     }
 
@@ -74,26 +103,27 @@ export class NetworkExceptionFactory {
     const coded = chain.find((e) => typeof e.code === 'string');
     const code = coded ? (coded.code as string) : undefined;
     const message = messageOf(coded ?? error);
+    const outcome = deliveryOutcome ?? NetworkExceptionFactory.outcomeOf(chain, code);
 
     if (
       chain.some((e) => TIMEOUT_NAMES.has(e.name as string)) ||
       (code && TIMEOUT_CODES.has(code))
     ) {
-      return new TimeoutException(message, code ?? 'ECONNABORTED', error, requestContext);
+      return new TimeoutException(message, code ?? 'ECONNABORTED', error, requestContext, outcome);
     }
     if (code === 'ECONNREFUSED') {
-      return new ConnectionRefusedException(message, code, error, requestContext);
+      return new ConnectionRefusedException(message, code, error, requestContext, outcome);
     }
     if (code && RESET_CODES.has(code)) {
-      return new SocketResetException(message, code, error, requestContext);
+      return new SocketResetException(message, code, error, requestContext, outcome);
     }
     if (code && DNS_CODES.has(code)) {
-      return new DnsResolutionException(message, code, error, requestContext);
+      return new DnsResolutionException(message, code, error, requestContext, outcome);
     }
     if (code && UNREACHABLE_CODES.has(code)) {
-      return new HostUnreachableException(message, code, error, requestContext);
+      return new HostUnreachableException(message, code, error, requestContext, outcome);
     }
-    return new NetworkException(message, code, error, requestContext);
+    return new NetworkException(message, code, error, requestContext, outcome);
   }
 
   /**
@@ -106,6 +136,23 @@ export class NetworkExceptionFactory {
     if (!isErrorLike(error)) return undefined;
     const coded = causeChain(error).find((e) => typeof e.code === 'string');
     return coded?.code as string | undefined;
+  }
+
+  /**
+   * Returns the {@link DeliveryOutcome} of an error without transport measurements: a valid
+   * outcome set on the error chain by a custom client, else one derived from the error code.
+   */
+  public static resolveDeliveryOutcome(error: unknown): DeliveryOutcome {
+    if (!isErrorLike(error)) return 'unknown';
+    const chain = causeChain(error);
+    const coded = chain.find((e) => typeof e.code === 'string');
+    return NetworkExceptionFactory.outcomeOf(chain, coded?.code as string | undefined);
+  }
+
+  private static outcomeOf(chain: ErrorLike[], code: string | undefined): DeliveryOutcome {
+    const declared = chain.find((e) => isDeliveryOutcome(e.deliveryOutcome))?.deliveryOutcome;
+    if (isDeliveryOutcome(declared)) return declared;
+    return code !== undefined && NOT_SENT_CODES.has(code) ? 'not_sent' : 'unknown';
   }
 
   /**

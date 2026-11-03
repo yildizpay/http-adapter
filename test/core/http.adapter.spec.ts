@@ -5,8 +5,12 @@ import type { HttpClientContract } from '../../src/contracts/http-client.contrac
 import type { HttpInterceptor } from '../../src/contracts/http-interceptor.contract';
 import { defaultHttpClient } from '../../src/core/default-http-client';
 import { HttpAdapter } from '../../src/core/http.adapter';
+import type { BaseAdapterException } from '../../src/exceptions/base-adapter.exception';
 import { CircuitBreakerOpenException } from '../../src/exceptions/circuit-breaker-open.exception';
-import { TimeoutException } from '../../src/exceptions/network.exceptions';
+import {
+  ConnectionRefusedException,
+  TimeoutException,
+} from '../../src/exceptions/network.exceptions';
 import { UnknownException } from '../../src/exceptions/unknown.exception';
 import { ValidationException } from '../../src/exceptions/validation.exception';
 import { Request } from '../../src/models/request';
@@ -908,6 +912,88 @@ describe('HttpAdapter', () => {
 
         expect(called).toEqual(['interceptor']);
       });
+    });
+  });
+
+  describe('delivery outcome (#49)', () => {
+    const fail = async (target: HttpAdapter, req: Request = request) => {
+      try {
+        await target.send(req);
+      } catch (error) {
+        return error as BaseAdapterException;
+      }
+      throw new Error('Expected the request to fail');
+    };
+
+    it('is not_sent when a request interceptor throws, whatever it threw', async () => {
+      const plain = HttpAdapter.create({
+        interceptors: [{ onRequest: vi.fn().mockRejectedValue(new Error('no token')) }],
+      });
+      const adapterError = HttpAdapter.create({
+        interceptors: [{ onRequest: vi.fn().mockRejectedValue(new TimeoutException()) }],
+      });
+
+      expect((await fail(plain)).deliveryOutcome).toBe('not_sent');
+      expect((await fail(adapterError)).deliveryOutcome).toBe('not_sent');
+      expect(mockHttpClient.request).not.toHaveBeenCalled();
+    });
+
+    it('keeps the outcome reported by the transport', async () => {
+      mockHttpClient.request.mockRejectedValueOnce(new ConnectionRefusedException());
+      expect((await fail(HttpAdapter.create())).deliveryOutcome).toBe('not_sent');
+
+      mockHttpClient.request.mockRejectedValueOnce(new TimeoutException());
+      expect((await fail(HttpAdapter.create())).deliveryOutcome).toBe('unknown');
+
+      mockHttpClient.request.mockRejectedValueOnce(
+        Object.assign(new Error('custom'), { deliveryOutcome: 'not_sent' }),
+      );
+      expect((await fail(HttpAdapter.create())).deliveryOutcome).toBe('not_sent');
+    });
+
+    it('is received when a response interceptor throws', async () => {
+      const target = HttpAdapter.create({
+        interceptors: [{ onResponse: vi.fn().mockRejectedValue(new Error('bad envelope')) }],
+      });
+
+      expect((await fail(target)).deliveryOutcome).toBe('received');
+    });
+
+    it('is received when a validator throws an adapter exception', async () => {
+      const req = new RequestBuilder('https://api.example.com')
+        .setEndpoint('/test')
+        .validateWith({
+          validate: () => {
+            throw new TimeoutException();
+          },
+        })
+        .build();
+
+      expect((await fail(HttpAdapter.create(), req)).deliveryOutcome).toBe('received');
+    });
+
+    it('does not overwrite the outcome of an exception returned by an error interceptor', async () => {
+      mockHttpClient.request.mockRejectedValueOnce(new ConnectionRefusedException());
+      const target = HttpAdapter.create({
+        interceptors: [{ onError: async () => new UnknownException('replaced') }],
+      });
+
+      const error = await fail(target);
+
+      expect(error.message).toBe('replaced');
+      expect(error.deliveryOutcome).toBe('unknown');
+    });
+
+    it('reports the outcome to the observer', async () => {
+      const onRequestFailure = vi.fn();
+      const target = HttpAdapter.create({
+        interceptors: [{ onRequest: vi.fn().mockRejectedValue(new Error('no token')) }],
+        observer: { onRequestFailure },
+      });
+
+      await fail(target);
+
+      expect(onRequestFailure.mock.calls[0]![0].deliveryOutcome).toBe('not_sent');
     });
   });
 });

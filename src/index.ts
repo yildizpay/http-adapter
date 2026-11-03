@@ -58,4 +58,5 @@ export * from './exceptions/network-exception.factory';
 export * from './exceptions/unknown.exception';
 export * from './exceptions/validation.exception';
 export * from './exceptions/exception.guards';
+export * from './exceptions/delivery-outcome';
 export * from './core/error.converter';

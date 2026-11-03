@@ -80,6 +80,23 @@ Only code that refers to the parameter by name, such as wrappers or docs, needs 
 | `fullJitter(attempts, baseMs)` | `fullJitter(maxAttempts, baseMs)` |
 | `decorrelatedJitter(attempts, baseMs, maxDelayMs)` | `decorrelatedJitter(maxAttempts, baseMs, maxDelayMs)` |
 
+## Errors
+
+### Every exception carries `deliveryOutcome`
+
+This is an addition, but it shows up in a few places:
+
+- `toJSON()` output has a new `deliveryOutcome` field. Update snapshot tests and log parsers that compare the full object.
+- The network exception constructors and `UnknownException` take an optional last `deliveryOutcome` parameter. Positional calls that stop before it are unchanged.
+- `FetchHttpClient.request()` throws an `UnknownException` with `deliveryOutcome: 'not_sent'` when the body cannot be serialized, instead of the raw `TypeError`. Through `HttpAdapter` the error was already an `UnknownException`; the original `TypeError` is its `cause`.
+
+```typescript
+// After: decide whether a failed payment may be sent again
+if (isNotSent(error)) {
+  // the request never reached the server
+}
+```
+
 ## Request bodies
 
 ### `HttpBody` allows arrays

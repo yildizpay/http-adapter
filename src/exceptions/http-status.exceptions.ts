@@ -6,7 +6,7 @@ export class HttpException<T = unknown> extends BaseAdapterException {
   public readonly response: Response<T>;
 
   constructor(response: Response<T>, message: string, code?: string, cause?: unknown) {
-    super(message, code, cause);
+    super(message, code, cause, 'received');
     this.name = 'HttpException';
     this.response = response;
     Object.setPrototypeOf(this, HttpException.prototype);

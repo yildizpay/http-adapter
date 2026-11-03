@@ -188,6 +188,9 @@ export class HttpAdapter implements HttpAdapterContract {
   ): Promise<Response<T>> {
     let processedRequest = request;
     let requestContext: RequestContext | undefined;
+    // Where the failure happened decides the delivery outcome of errors raised around the
+    // transport call: before it nothing was sent, after it the server has answered.
+    let stage: 'before-send' | 'transport' | 'after-response' = 'before-send';
 
     try {
       processedRequest = await this.runRequestInterceptors(request, interceptorGroups.request);
@@ -204,7 +207,9 @@ export class HttpAdapter implements HttpAdapterContract {
 
       this.observer?.onRequestStart?.(processedRequest);
 
+      stage = 'transport';
       const response = await this.executeHttpCall<T>(processedRequest, url, requestContext);
+      stage = 'after-response';
       const interceptedResponse = await this.runResponseInterceptors<T>(
         response,
         interceptorGroups.response,
@@ -215,11 +220,15 @@ export class HttpAdapter implements HttpAdapterContract {
         interceptorGroups.validatedResponse,
       );
     } catch (error) {
+      const adapterError = ErrorConverter.toAdapterException(
+        error,
+        requestContext ?? this.tryBuildRequestContext(processedRequest),
+      );
+      if (stage === 'before-send') ErrorConverter.setDeliveryOutcome(adapterError, 'not_sent');
+      if (stage === 'after-response') ErrorConverter.setDeliveryOutcome(adapterError, 'received');
+
       const propagatedError = await this.runErrorInterceptors(
-        ErrorConverter.toAdapterException(
-          error,
-          requestContext ?? this.tryBuildRequestContext(processedRequest),
-        ),
+        adapterError,
         processedRequest,
         interceptorGroups.error,
       );

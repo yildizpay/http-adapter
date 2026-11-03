@@ -318,6 +318,105 @@ describe('HttpAdapter (integration)', () => {
     });
   });
 
+  describe('delivery outcome (#49)', () => {
+    const outcomeOf = async (req = request().setEndpoint('/').build(), target = adapter) =>
+      ((await sendAndCatch(req, target)) as BaseAdapterException).deliveryOutcome;
+
+    it('is not_sent when the connection is refused', async () => {
+      expect(
+        await outcomeOf(
+          request(await refusedUrl())
+            .setEndpoint('/')
+            .build(),
+        ),
+      ).toBe('not_sent');
+    });
+
+    it('is not_sent when the host does not resolve', async () => {
+      expect(await outcomeOf(request(UNRESOLVABLE_URL).setEndpoint('/').build())).toBe('not_sent');
+    });
+
+    it('is not_sent when the timeout fires before the connection is established', async () => {
+      // TEST-NET-1 (RFC 5737) is never routed, so connecting hangs or fails.
+      const req = request('http://192.0.2.1').setEndpoint('/').setTimeout(200).build();
+
+      expect(await outcomeOf(req)).toBe('not_sent');
+    });
+
+    it('is unknown when the timeout fires after the request was sent', async () => {
+      server.route('/slow', delay(500));
+
+      const error = await sendAndCatch(request().setEndpoint('/slow').setTimeout(50).build());
+
+      expect(error).toBeInstanceOf(TimeoutException);
+      expect((error as TimeoutException).deliveryOutcome).toBe('unknown');
+      expect(server.requestsTo('/slow')).toHaveLength(1);
+    });
+
+    it('is unknown when the socket is closed before the response', async () => {
+      server.route('/reset', resetBeforeHeaders);
+
+      expect(await outcomeOf(request().setEndpoint('/reset').build())).toBe('unknown');
+    });
+
+    it('is received when the body breaks off after the response headers', async () => {
+      server.route('/truncated', resetAfterHeaders);
+
+      expect(await outcomeOf(request().setEndpoint('/truncated').build())).toBe('received');
+    });
+
+    it('is received for an HTTP error status', async () => {
+      server.route('/unavailable', status(503));
+
+      expect(await outcomeOf(request().setEndpoint('/unavailable').build())).toBe('received');
+    });
+
+    it('is received when response validation fails', async () => {
+      const req = request()
+        .setEndpoint('/')
+        .validateWith({
+          validate: () => {
+            throw new Error('unexpected shape');
+          },
+        })
+        .build();
+
+      expect(await outcomeOf(req)).toBe('received');
+      expect(server.requests).toHaveLength(1);
+    });
+
+    it('is not_sent when a request interceptor throws', async () => {
+      const failing = HttpAdapter.builder()
+        .withInterceptor({
+          onRequest: async () => {
+            throw new Error('token refresh failed');
+          },
+        })
+        .build();
+
+      expect(await outcomeOf(undefined, failing)).toBe('not_sent');
+      expect(server.requests).toHaveLength(0);
+    });
+
+    it('is not_sent when the body cannot be serialized', async () => {
+      const req = request().setEndpoint('/').asXml().setBody({ a: 1 }).build();
+
+      expect(await outcomeOf(req)).toBe('not_sent');
+      expect(server.requests).toHaveLength(0);
+    });
+
+    it('is not_sent when the circuit breaker is open', async () => {
+      server.route('/unavailable', status(503));
+      const guarded = HttpAdapter.builder().withCircuitBreaker({ failureThreshold: 1 }).build();
+      await sendAndCatch(request().setEndpoint('/unavailable').build(), guarded);
+
+      expect(await outcomeOf(request().setEndpoint('/unavailable').build(), guarded)).toBe(
+        'not_sent',
+      );
+      expect(server.requestsTo('/unavailable')).toHaveLength(1);
+    });
+  });
+
   it.todo('honors Retry-After between retries (#51)');
   it.todo('decodes iso-8859-9 responses (#53)');
 });
