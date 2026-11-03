@@ -1,5 +1,6 @@
 import type { RequestContext } from '../models/request-context';
 import { BaseAdapterException } from './base-adapter.exception';
+import type { DeliveryOutcome } from './delivery-outcome';
 
 export class NetworkException extends BaseAdapterException {
   public readonly requestContext?: RequestContext;
@@ -9,8 +10,9 @@ export class NetworkException extends BaseAdapterException {
     code?: string,
     cause?: unknown,
     requestContext?: RequestContext,
+    deliveryOutcome: DeliveryOutcome = 'unknown',
   ) {
-    super(message, code, cause);
+    super(message, code, cause, deliveryOutcome);
     this.name = 'NetworkException';
     this.requestContext = requestContext;
     Object.setPrototypeOf(this, NetworkException.prototype);
@@ -30,8 +32,9 @@ export class ConnectionRefusedException extends NetworkException {
     code: string = 'ECONNREFUSED',
     cause?: unknown,
     requestContext?: RequestContext,
+    deliveryOutcome: DeliveryOutcome = 'not_sent',
   ) {
-    super(message, code, cause, requestContext);
+    super(message, code, cause, requestContext, deliveryOutcome);
     this.name = 'ConnectionRefusedException';
     Object.setPrototypeOf(this, ConnectionRefusedException.prototype);
   }
@@ -47,8 +50,9 @@ export class DnsResolutionException extends NetworkException {
     code: string = 'ENOTFOUND',
     cause?: unknown,
     requestContext?: RequestContext,
+    deliveryOutcome: DeliveryOutcome = 'not_sent',
   ) {
-    super(message, code, cause, requestContext);
+    super(message, code, cause, requestContext, deliveryOutcome);
     this.name = 'DnsResolutionException';
     Object.setPrototypeOf(this, DnsResolutionException.prototype);
   }
@@ -60,8 +64,9 @@ export class TimeoutException extends NetworkException {
     code: string = 'ECONNABORTED',
     cause?: unknown,
     requestContext?: RequestContext,
+    deliveryOutcome: DeliveryOutcome = 'unknown',
   ) {
-    super(message, code, cause, requestContext);
+    super(message, code, cause, requestContext, deliveryOutcome);
     this.name = 'TimeoutException';
     Object.setPrototypeOf(this, TimeoutException.prototype);
   }
@@ -77,8 +82,9 @@ export class SocketResetException extends NetworkException {
     code: string = 'ECONNRESET',
     cause?: unknown,
     requestContext?: RequestContext,
+    deliveryOutcome: DeliveryOutcome = 'unknown',
   ) {
-    super(message, code, cause, requestContext);
+    super(message, code, cause, requestContext, deliveryOutcome);
     this.name = 'SocketResetException';
     Object.setPrototypeOf(this, SocketResetException.prototype);
   }
@@ -94,8 +100,9 @@ export class HostUnreachableException extends NetworkException {
     code: string = 'EHOSTUNREACH',
     cause?: unknown,
     requestContext?: RequestContext,
+    deliveryOutcome: DeliveryOutcome = 'not_sent',
   ) {
-    super(message, code, cause, requestContext);
+    super(message, code, cause, requestContext, deliveryOutcome);
     this.name = 'HostUnreachableException';
     Object.setPrototypeOf(this, HostUnreachableException.prototype);
   }

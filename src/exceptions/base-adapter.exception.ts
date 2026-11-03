@@ -1,10 +1,26 @@
+import type { DeliveryOutcome } from './delivery-outcome';
+
 export class BaseAdapterException extends Error {
   public readonly code?: string;
 
-  constructor(message: string, code?: string, cause?: unknown) {
+  /**
+   * Whether the request reached the server. See {@link DeliveryOutcome}.
+   *
+   * Decide whether a failed payment may be sent again, or sent to another provider, from this
+   * value: only `not_sent` guarantees that the first attempt had no effect.
+   */
+  public readonly deliveryOutcome: DeliveryOutcome;
+
+  constructor(
+    message: string,
+    code?: string,
+    cause?: unknown,
+    deliveryOutcome: DeliveryOutcome = 'unknown',
+  ) {
     super(message, { cause });
     this.name = 'BaseAdapterException';
     this.code = code;
+    this.deliveryOutcome = deliveryOutcome;
     Object.setPrototypeOf(this, BaseAdapterException.prototype);
   }
 
@@ -28,6 +44,7 @@ export class BaseAdapterException extends Error {
       name: this.name,
       message: this.message,
       ...(this.code !== undefined && { code: this.code }),
+      deliveryOutcome: this.deliveryOutcome,
       ...(this.cause !== undefined && { cause: BaseAdapterException.serializeCause(this.cause) }),
       stack: this.stack,
     };

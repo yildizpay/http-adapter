@@ -22,7 +22,8 @@ export class CircuitBreakerOpenException extends BaseAdapterException {
     nextAttemptAt: number = 0,
     message: string = 'Circuit Breaker is OPEN. Execution denied.',
   ) {
-    super(message);
+    // The breaker rejects the call before anything is sent.
+    super(message, undefined, undefined, 'not_sent');
     this.name = 'CircuitBreakerOpenException';
     this.nextAttemptAt = nextAttemptAt;
     Object.setPrototypeOf(this, CircuitBreakerOpenException.prototype);

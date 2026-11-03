@@ -296,4 +296,94 @@ describe('NetworkException Subclasses', () => {
       expect((json.request as Record<string, unknown>).url).toBe('https://api.example.com');
     });
   });
+
+  describe('delivery outcome (#49)', () => {
+    const fetchFailed = (cause: unknown) => Object.assign(new TypeError('fetch failed'), { cause });
+
+    it.each([
+      ['ENOTFOUND', 'not_sent'],
+      ['EAI_AGAIN', 'not_sent'],
+      ['ECONNREFUSED', 'not_sent'],
+      ['EHOSTUNREACH', 'not_sent'],
+      ['ENETUNREACH', 'not_sent'],
+      ['UND_ERR_CONNECT_TIMEOUT', 'not_sent'],
+      ['CERT_HAS_EXPIRED', 'not_sent'],
+      ['ERR_TLS_CERT_ALTNAME_INVALID', 'not_sent'],
+      ['ECONNRESET', 'unknown'],
+      ['UND_ERR_SOCKET', 'unknown'],
+      ['UND_ERR_HEADERS_TIMEOUT', 'unknown'],
+      ['EPIPE', 'unknown'],
+      ['ESOMETHINGELSE', 'unknown'],
+    ])('derives %s → %s from the code when nothing was measured', (code, outcome) => {
+      const error = NetworkExceptionFactory.createFromNativeError(
+        fetchFailed(makeErrnoError('x', code)),
+      );
+      expect(error.deliveryOutcome).toBe(outcome);
+    });
+
+    it('treats a bare timeout as unknown', () => {
+      const abort = Object.assign(new Error('aborted'), { name: 'AbortError' });
+      const error = NetworkExceptionFactory.createFromNativeError(abort);
+
+      expect(error).toBeInstanceOf(TimeoutException);
+      expect(error.deliveryOutcome).toBe('unknown');
+    });
+
+    it('uses the measured outcome over the code', () => {
+      const abort = Object.assign(new Error('aborted'), { name: 'AbortError' });
+
+      expect(
+        NetworkExceptionFactory.createFromNativeError(abort, undefined, 'not_sent').deliveryOutcome,
+      ).toBe('not_sent');
+      expect(
+        NetworkExceptionFactory.createFromNativeError(
+          fetchFailed(makeErrnoError('x', 'ECONNREFUSED')),
+          undefined,
+          'unknown',
+        ).deliveryOutcome,
+      ).toBe('unknown');
+    });
+
+    it('uses a valid outcome declared on the error chain by a custom client', () => {
+      const declared = Object.assign(makeErrnoError('x', 'ECONNRESET'), {
+        deliveryOutcome: 'not_sent',
+      });
+
+      expect(
+        NetworkExceptionFactory.createFromNativeError(fetchFailed(declared)).deliveryOutcome,
+      ).toBe('not_sent');
+    });
+
+    it('ignores an invalid declared outcome', () => {
+      const declared = Object.assign(makeErrnoError('x', 'ECONNRESET'), {
+        deliveryOutcome: 'sent',
+      });
+
+      expect(NetworkExceptionFactory.createFromNativeError(declared).deliveryOutcome).toBe(
+        'unknown',
+      );
+    });
+
+    it('uses the measured outcome for non-error values', () => {
+      expect(NetworkExceptionFactory.createFromNativeError('boom').deliveryOutcome).toBe('unknown');
+      expect(
+        NetworkExceptionFactory.createFromNativeError('boom', undefined, 'not_sent')
+          .deliveryOutcome,
+      ).toBe('not_sent');
+    });
+
+    it('resolves the outcome of arbitrary errors', () => {
+      expect(NetworkExceptionFactory.resolveDeliveryOutcome('boom')).toBe('unknown');
+      expect(NetworkExceptionFactory.resolveDeliveryOutcome(new Error('x'))).toBe('unknown');
+      expect(NetworkExceptionFactory.resolveDeliveryOutcome(makeErrnoError('x', 'ENOTFOUND'))).toBe(
+        'not_sent',
+      );
+      expect(
+        NetworkExceptionFactory.resolveDeliveryOutcome({
+          message: 'x',
+          deliveryOutcome: 'received',
+        }),
+      ).toBe('received');
+    });
+  });
 });

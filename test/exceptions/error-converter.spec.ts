@@ -358,4 +358,40 @@ describe('ErrorConverter', () => {
       expect(error.name).toBe('NetworkException');
     });
   });
+
+  describe('delivery outcome (#49)', () => {
+    it('keeps a valid outcome set by a custom client', () => {
+      const error = Object.assign(new Error('client failed'), { deliveryOutcome: 'not_sent' });
+
+      const converted = ErrorConverter.toAdapterException(error);
+
+      expect(converted).toBeInstanceOf(UnknownException);
+      expect(converted.deliveryOutcome).toBe('not_sent');
+    });
+
+    it('resolves custom client errors without an outcome to unknown', () => {
+      expect(ErrorConverter.toAdapterException(new Error('client failed')).deliveryOutcome).toBe(
+        'unknown',
+      );
+      expect(ErrorConverter.toAdapterException('boom').deliveryOutcome).toBe('unknown');
+    });
+
+    it('ignores an invalid outcome', () => {
+      const error = Object.assign(new Error('client failed'), { deliveryOutcome: 'sent' });
+
+      expect(ErrorConverter.toAdapterException(error).deliveryOutcome).toBe('unknown');
+    });
+
+    it('treats an error with an HTTP status as received', () => {
+      expect(ErrorConverter.toAdapterException({ status: 502 }).deliveryOutcome).toBe('received');
+    });
+
+    it('lets the adapter record where a failure happened', () => {
+      const error = new UnknownException('x');
+
+      ErrorConverter.setDeliveryOutcome(error, 'not_sent');
+
+      expect(error.deliveryOutcome).toBe('not_sent');
+    });
+  });
 });

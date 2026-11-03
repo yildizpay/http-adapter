@@ -1,4 +1,5 @@
 import { BaseAdapterException } from '../exceptions/base-adapter.exception';
+import type { DeliveryOutcome } from '../exceptions/delivery-outcome';
 import { HttpExceptionFactory } from '../exceptions/http-exception.factory';
 import { HttpException } from '../exceptions/http-status.exceptions';
 import { NetworkException } from '../exceptions/network.exceptions';
@@ -73,7 +74,14 @@ export class ErrorConverter {
         return NetworkExceptionFactory.createFromNativeError(error, requestContext);
       }
 
-      if (error instanceof Error) return new UnknownException(error.message, error, requestContext);
+      if (error instanceof Error) {
+        return new UnknownException(
+          error.message,
+          error,
+          requestContext,
+          NetworkExceptionFactory.resolveDeliveryOutcome(error),
+        );
+      }
     }
 
     return new UnknownException(
@@ -88,6 +96,14 @@ export class ErrorConverter {
    *
    * @private
    */
+  /**
+   * Records where a failure happened when the adapter knows it better than the exception:
+   * an error thrown before the transport call (`not_sent`) or after the response (`received`).
+   */
+  public static setDeliveryOutcome(error: BaseAdapterException, outcome: DeliveryOutcome): void {
+    (error as { deliveryOutcome: DeliveryOutcome }).deliveryOutcome = outcome;
+  }
+
   private static attachRequestContext(
     error: BaseAdapterException,
     requestContext?: RequestContext,
